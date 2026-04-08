@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from "framer-motion";
 
 // ─── Motion System ─────────────────────────────────────────────
@@ -592,13 +593,26 @@ function Hero() {
   );
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="px-3 py-1.5 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition"
+    >
+      {theme === "dark" ? "🌞 Light" : "🌙 Dark"}
+    </button>
+  );
+}
+
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function SyncWiseDashboard() {
   const [activeNav, setActiveNav] = useState("overview");
   const [hoveredTask, setHoveredTask] = useState(null);
 
   return (
-    <div className="min-h-screen bg-[#07070d] text-white font-sans flex">
+   <div className="min-h-screen bg-background text-foreground">
       {/* Noise texture overlay */}
       <div className="fixed inset-0 pointer-events-none z-50 opacity-[0.025]"
         style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")", backgroundSize: "128px 128px" }} />
@@ -621,7 +635,11 @@ export default function SyncWiseDashboard() {
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
           >
-            <Hero />
+            <div className="flex justify-end mb-4">
+              <ThemeToggle />
+            </div>
+
+              <Hero />
 
             {/* Metrics */}
             <motion.div variants={fadeUp} custom={1} className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">

@@ -1,18 +1,20 @@
 'use client';
 
-interface SidebarProps {
-  activePage: string;
-  onPageChange: (page: string) => void;
-}
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
-export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
+export default function Sidebar() {
+  const pathname = usePathname();
+
   const menuItems = [
-    { id: 'overview', name: 'Dashboard', icon: '📊' },
-    { id: 'tasks', name: 'Tasks', icon: '✓' },
-    { id: 'teams', name: 'Teams', icon: '👥' },
-    { id: 'leaderboard', name: 'Leaderboard', icon: '🏆' },
-    { id: 'analytics', name: 'Analytics', icon: '📈' },
+    { id: 'overview', name: 'Dashboard', icon: '📊', href: '/dashboard/overview' },
+    { id: 'tasks', name: 'Tasks', icon: '✓', href: '/dashboard/tasks' },
+    { id: 'teams', name: 'Teams', icon: '👥', href: '/dashboard/teams' },
+    { id: 'leaderboard', name: 'Leaderboard', icon: '🏆', href: '/dashboard/leaderboard' },
+    { id: 'analytics', name: 'Analytics', icon: '📈', href: '/dashboard/analytics' },
   ];
+
+  const isActive = (href: string) => pathname === href;
 
   return (
     <aside
@@ -23,12 +25,12 @@ export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
       }}
     >
       {/* Logo */}
-      <div
+      <Link
+        href="/dashboard/overview"
         className="p-6 border-b transition-colors duration-300 cursor-pointer group"
         style={{
           borderColor: 'var(--border)',
         }}
-        onClick={() => onPageChange('overview')}
       >
         <h1 className="text-xl font-bold transition-all duration-300 group-hover:scale-105" style={{
           color: 'var(--foreground)',
@@ -44,25 +46,25 @@ export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
         >
           Go to dashboard
         </p>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         {menuItems.map((item) => {
-          const isActive = activePage === item.id;
+          const active = isActive(item.href);
           return (
-            <button
+            <Link
               key={item.id}
-              onClick={() => onPageChange(item.id)}
+              href={item.href}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 relative group"
               style={{
-                backgroundColor: isActive
+                backgroundColor: active
                   ? 'rgba(255, 255, 255, 0.08)'
                   : 'transparent',
-                color: isActive ? 'var(--foreground)' : 'var(--text-secondary)',
+                color: active ? 'var(--foreground)' : 'var(--text-secondary)',
               }}
               onMouseEnter={(e) => {
-                if (!isActive) {
+                if (!active) {
                   (e.currentTarget as HTMLElement).style.backgroundColor =
                     'rgba(255, 255, 255, 0.04)';
                   (e.currentTarget as HTMLElement).style.color =
@@ -70,7 +72,7 @@ export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
                 }
               }}
               onMouseLeave={(e) => {
-                if (!isActive) {
+                if (!active) {
                   (e.currentTarget as HTMLElement).style.backgroundColor =
                     'transparent';
                   (e.currentTarget as HTMLElement).style.color =
@@ -79,7 +81,7 @@ export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
               }}
             >
               {/* Left Indicator Bar */}
-              {isActive && (
+              {active && (
                 <div
                   className="absolute left-0 top-0 bottom-0 w-1 rounded-r-lg transition-all duration-300"
                   style={{
@@ -94,7 +96,7 @@ export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
               </span>
 
               {/* Glow effect on hover */}
-              {!isActive && (
+              {!active && (
                 <div
                   className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-10 transition-opacity duration-300"
                   style={{
@@ -102,7 +104,7 @@ export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
                   }}
                 />
               )}
-            </button>
+            </Link>
           );
         })}
       </nav>

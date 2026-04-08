@@ -1,57 +1,62 @@
 'use client';
 
-import { useState } from 'react';
-import { dummyTasks, Task, TaskStatus } from '@/app/data/tasks';
+import { useState, useEffect } from 'react';
+import { useTasks } from '@/hooks/useTasks';
 import TaskCard from './TaskCard';
+import CreateTaskModal from './CreateTaskModal';
 
 export default function TaskList() {
-  const [tasks, setTasks] = useState<Task[]>(dummyTasks);
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const {
+    tasks,
+    loading,
+    error,
+    addTask,
+    removeTask,
+    updateStatus,
+    isCreating,
+    isDeleting,
+    isUpdating,
+  } = useTasks();
+  
+  const [showModal, setShowModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Cycle status: pending → in-progress → done → pending
-  const handleStatusChange = (taskId: string) => {
-    setTasks(
-      tasks.map((task) => {
-        if (task.id === taskId) {
-          const statusCycle: Record<TaskStatus, TaskStatus> = {
-            pending: 'in-progress',
-            'in-progress': 'done',
-            done: 'pending',
-          };
-          return { ...task, status: statusCycle[task.status] };
-        }
-        return task;
-      })
-    );
-  };
+  // Clear success message after 3 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
-  // Add new task
-  const handleAddTask = () => {
-    if (newTaskTitle.trim() === '') return;
-
-    const newTask: Task = {
-      id: String(tasks.length + 1),
-      title: newTaskTitle,
-      assignedTo: {
-        name: 'Unassigned',
-        avatar: 'U',
-      },
-      status: 'pending',
-      points: 5,
-    };
-
-    setTasks([...tasks, newTask]);
-    setNewTaskTitle('');
-    setShowAddTask(false);
-  };
+  // Close modal when task is created successfully (isCreating becomes false without error)
+  useEffect(() => {
+    if (!isCreating && showModal) {
+      // Task was created successfully
+      setShowModal(false);
+      setSuccessMessage('✓ Task created successfully');
+    }
+  }, [isCreating, showModal]);
 
   const pendingCount = tasks.filter((t) => t.status === 'pending').length;
   const inProgressCount = tasks.filter((t) => t.status === 'in-progress').length;
   const doneCount = tasks.filter((t) => t.status === 'done').length;
 
+  const handleCreateTask = async (
+    title: string,
+    deadline?: string,
+    points?: number
+  ) => {
+    try {
+      await addTask(title, deadline, points);
+    } catch (err) {
+      // Error is handled by hook and displayed in modal
+      console.error('Task creation error:', err);
+    }
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -61,121 +66,119 @@ export default function TaskList() {
           >
             Tasks
           </h2>
-          <p style={{ color: 'var(--text-secondary)' }} className="text-sm">
-            {tasks.length} total • {pendingCount} pending • {inProgressCount}{' '}
-            in progress • {doneCount} done
-          </p>
+          {loading ? (
+            <p style={{ color: 'var(--text-secondary)' }} className="text-sm animate-pulse">
+              Loading tasks...
+            </p>
+          ) : (
+            <p style={{ color: 'var(--text-secondary)' }} className="text-sm">
+              {tasks.length} total • {pendingCount} pending • {inProgressCount}{' '}
+              in progress • {doneCount} done
+            </p>
+          )}
         </div>
 
         {/* Action Button */}
         <button
-          onClick={() => setShowAddTask(!showAddTask)}
-          className="px-4 py-2 rounded-lg font-medium text-sm transition-all"
+          onClick={() => setShowModal(true)}
+          disabled={isCreating}
+          className="px-4 py-2 rounded-lg font-medium text-sm transition-all disabled:opacity-50"
           style={{
             backgroundColor: 'var(--accent-success)',
             color: '#0b0b0f',
+            cursor: isCreating ? 'not-allowed' : 'pointer',
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.opacity = '0.9';
+            if (!isCreating) {
+              (e.currentTarget as HTMLElement).style.opacity = '0.9';
+            }
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLElement).style.opacity = '1';
           }}
         >
-          {showAddTask ? '✕ Cancel' : '+ Add Task'}
+          {isCreating ? '⟳ Loading...' : '+ Add Task'}
         </button>
       </div>
 
-      {/* Add Task Input */}
-      {showAddTask && (
+      {/* Success Message */}
+      {successMessage && (
         <div
-          className="rounded-lg p-4 space-y-3"
+          className="p-4 rounded-lg text-sm animate-pulse"
           style={{
-            backgroundColor: 'var(--card-bg)',
-            border: '1px solid var(--accent-success)',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            color: '#22c55e',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
           }}
         >
-          <label
-            style={{ color: 'var(--text-secondary)' }}
-            className="text-sm font-medium"
-          >
-            Task Title
-          </label>
-          <input
-            type="text"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddTask();
-            }}
-            placeholder="Enter task title..."
-            className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
-            autoFocus
+          {successMessage}
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {error && (
+        <div
+          className="p-4 rounded-lg text-sm"
+          style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            color: '#ef4444',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+          }}
+        >
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && tasks.length === 0 && (
+        <div
+          className="p-8 rounded-lg text-center"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.04)',
+            border: '1px dashed rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <p style={{ color: 'var(--text-secondary)' }} className="mb-3">
+            No tasks yet. Create your first task to get started! 🚀
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="text-sm font-medium px-3 py-1 rounded transition-all"
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.04)',
-              color: 'var(--foreground)',
-              border: '1px solid var(--border)',
-              caretColor: 'var(--accent-success)',
+              color: 'var(--accent-success)',
+              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              border: '1px solid var(--accent-success)',
             }}
-            onFocus={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor =
-                'var(--accent-success)';
-            }}
-            onBlur={(e) => {
-              (e.currentTarget as HTMLElement).style.borderColor =
-                'var(--border)';
-            }}
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddTask}
-              disabled={newTaskTitle.trim() === ''}
-              className="flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all"
-              style={{
-                backgroundColor: 'var(--accent-success)',
-                color: '#0b0b0f',
-                opacity: newTaskTitle.trim() === '' ? 0.5 : 1,
-                cursor: newTaskTitle.trim() === '' ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Create Task
-            </button>
-            <button
-              onClick={() => {
-                setShowAddTask(false);
-                setNewTaskTitle('');
-              }}
-              className="flex-1 px-3 py-2 rounded-lg font-medium text-sm transition-all"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                color: 'var(--foreground)',
-                border: '1px solid var(--border)',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor =
-                  'rgba(255, 255, 255, 0.08)';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor =
-                  'rgba(255, 255, 255, 0.04)';
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+          >
+            Create Task
+          </button>
         </div>
       )}
 
       {/* Task List */}
-      <div className="space-y-3">
-        {tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onStatusChange={handleStatusChange}
-          />
-        ))}
-      </div>
+      {!loading && tasks.length > 0 && (
+        <div className="space-y-3">
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onStatusChange={() => updateStatus(task.id)}
+              onDelete={() => removeTask(task.id)}
+              isDeleting={isDeleting === task.id}
+              isUpdating={isUpdating === task.id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Create Task Modal */}
+      <CreateTaskModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onCreate={handleCreateTask}
+        isCreating={isCreating}
+        error={error}
+      />
     </div>
   );
 }

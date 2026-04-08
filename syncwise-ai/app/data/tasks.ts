@@ -3,20 +3,23 @@ export type TaskStatus = 'pending' | 'in-progress' | 'done';
 export interface Task {
   id: string;
   title: string;
-  assignedTo: {
-    name: string;
-    avatar: string;
-  };
+  assigned_to?: {
+    name?: string;
+    avatar?: string;
+  } | null;
   status: TaskStatus;
   deadline?: string;
   points: number;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const dummyTasks: Task[] = [
   {
     id: '1',
     title: 'Design dashboard layout',
-    assignedTo: {
+    assigned_to: {
       name: 'Alice Johnson',
       avatar: 'AJ',
     },
@@ -27,7 +30,7 @@ export const dummyTasks: Task[] = [
   {
     id: '2',
     title: 'Implement user authentication',
-    assignedTo: {
+    assigned_to: {
       name: 'Bob Smith',
       avatar: 'BS',
     },
@@ -38,7 +41,7 @@ export const dummyTasks: Task[] = [
   {
     id: '3',
     title: 'Create task management API',
-    assignedTo: {
+    assigned_to: {
       name: 'Carol Davis',
       avatar: 'CD',
     },
@@ -49,7 +52,7 @@ export const dummyTasks: Task[] = [
   {
     id: '4',
     title: 'Build leaderboard component',
-    assignedTo: {
+    assigned_to: {
       name: 'David Wilson',
       avatar: 'DW',
     },
@@ -60,7 +63,7 @@ export const dummyTasks: Task[] = [
   {
     id: '5',
     title: 'Setup database schema',
-    assignedTo: {
+    assigned_to: {
       name: 'Eve Martinez',
       avatar: 'EM',
     },

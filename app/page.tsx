@@ -593,8 +593,28 @@ function Hero() {
   );
 }
 
+"use client";
+;
+
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="px-3 py-1.5 text-xs rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition"
+    >
+      {theme === "dark" ? "🌞 Light" : "🌙 Dark"}
+    </button>
+  );
+}
 
   return (
     <button

@@ -41,21 +41,27 @@ export default function TaskCard({ task, onStatusChange }: TaskCardProps) {
 
   return (
     <div
-      className="rounded-lg p-4 transition-all cursor-pointer"
+      className="rounded-lg p-4 transition-all duration-300 cursor-pointer backdrop-blur-sm border"
       style={{
-        backgroundColor: 'var(--card-bg)',
-        border: '1px solid var(--border)',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLElement).style.border =
-          '1px solid var(--accent-success)';
+        (e.currentTarget as HTMLElement).style.borderColor =
+          'rgba(34, 197, 94, 0.3)';
         (e.currentTarget as HTMLElement).style.boxShadow =
-          '0 8px 16px rgba(34, 197, 94, 0.08)';
+          '0 12px 24px rgba(34, 197, 94, 0.12)';
+        (e.currentTarget as HTMLElement).style.transform =
+          'translateY(-2px)';
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLElement).style.border =
-          '1px solid var(--border)';
-        (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+        (e.currentTarget as HTMLElement).style.borderColor =
+          'rgba(255, 255, 255, 0.1)';
+        (e.currentTarget as HTMLElement).style.boxShadow =
+          '0 8px 16px rgba(0, 0, 0, 0.2)';
+        (e.currentTarget as HTMLElement).style.transform =
+          'translateY(0)';
       }}
     >
       <div className="flex items-start justify-between gap-4">

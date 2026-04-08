@@ -7,7 +7,7 @@ interface SidebarProps {
 
 export default function Sidebar({ activePage, onPageChange }: SidebarProps) {
   const menuItems = [
-    { id: 'overview', name: 'Overview', icon: '📊' },
+    { id: 'overview', name: 'Dashboard', icon: '📊' },
     { id: 'tasks', name: 'Tasks', icon: '✓' },
     { id: 'teams', name: 'Teams', icon: '👥' },
     { id: 'leaderboard', name: 'Leaderboard', icon: '🏆' },

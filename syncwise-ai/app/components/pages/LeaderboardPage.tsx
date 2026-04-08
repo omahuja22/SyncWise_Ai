@@ -26,33 +26,57 @@ export default function LeaderboardPage() {
 
       {/* Leaderboard Table */}
       <div
-        className="rounded-lg overflow-hidden"
+        className="rounded-lg overflow-hidden backdrop-blur-sm border"
         style={{
-          backgroundColor: 'var(--card-bg)',
-          border: '1px solid var(--border)',
+          backgroundColor: 'rgba(255, 255, 255, 0.06)',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
         }}
       >
-        {leaderboard.map((entry) => (
+        {leaderboard.map((entry, idx) => (
           <div
             key={entry.rank}
-            className="flex items-center justify-between p-4 border-b border-[var(--border)]"
+            className="flex items-center justify-between p-4 transition-all duration-300 hover:-translate-x-1 group"
             style={{
-              borderBottom: '1px solid var(--border)',
+              borderBottom:
+                idx < leaderboard.length - 1
+                  ? '1px solid rgba(255, 255, 255, 0.1)'
+                  : 'none',
+              backgroundColor:
+                entry.rank === 1
+                  ? 'rgba(34, 197, 94, 0.08)'
+                  : 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor =
+                'rgba(255, 255, 255, 0.04)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.backgroundColor =
+                entry.rank === 1
+                  ? 'rgba(34, 197, 94, 0.08)'
+                  : 'transparent';
             }}
           >
             <div className="flex items-center gap-4">
               <div
-                className="w-10 h-10 rounded-full text-xs font-bold flex items-center justify-center"
+                className="w-10 h-10 rounded-full text-xs font-bold flex items-center justify-center transition-all duration-300"
                 style={{
-                  backgroundColor: 'rgba(34, 197, 94, 0.2)',
-                  color: '#22c55e',
+                  backgroundColor:
+                    entry.rank === 1
+                      ? 'var(--accent-success)'
+                      : 'rgba(255, 255, 255, 0.1)',
+                  color:
+                    entry.rank === 1
+                      ? '#0b0b0f'
+                      : 'var(--foreground)',
                 }}
               >
                 #{entry.rank}
               </div>
               <div>
                 <p
-                  className="font-medium"
+                  className="font-medium transition-colors duration-300"
                   style={{ color: 'var(--foreground)' }}
                 >
                   {entry.name}
@@ -60,7 +84,7 @@ export default function LeaderboardPage() {
               </div>
             </div>
             <p
-              className="text-lg font-bold"
+              className="text-lg font-bold transition-colors duration-300"
               style={{ color: 'var(--accent-success)' }}
             >
               {entry.points} pts

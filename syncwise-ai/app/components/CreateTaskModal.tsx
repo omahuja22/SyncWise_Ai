@@ -59,7 +59,12 @@ export default function CreateTaskModal({
   return (
     <div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
-      onClick={onClose}
+      onClick={(e) => {
+        // Only close if clicking the backdrop itself, not the modal
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div
         className="relative rounded-xl p-6 space-y-4 max-w-md w-full mx-4 animation-scale-in"
@@ -79,7 +84,12 @@ export default function CreateTaskModal({
             Create New Task
           </h2>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
             disabled={isCreating}
             className="text-2xl leading-none transition-opacity hover:opacity-60 disabled:opacity-50"
             style={{ color: 'var(--text-secondary)' }}
@@ -214,7 +224,11 @@ export default function CreateTaskModal({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClose();
+              }}
               disabled={isCreating}
               className="flex-1 px-4 py-2 rounded-lg font-medium text-sm transition-all"
               style={{

@@ -37,7 +37,7 @@ html.light {
 }
 
 html {
-  @apply h-full scroll-smooth;
+  @apply h-full;
 }
 
 body {

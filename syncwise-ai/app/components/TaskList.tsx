@@ -20,6 +20,7 @@ export default function TaskList() {
   
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [wasCreating, setWasCreating] = useState(false);
 
   // Clear success message after 3 seconds
   useEffect(() => {
@@ -29,14 +30,20 @@ export default function TaskList() {
     }
   }, [successMessage]);
 
-  // Close modal when task is created successfully (isCreating becomes false without error)
+  // Track when task creation completes (isCreating goes from true to false)
   useEffect(() => {
-    if (!isCreating && showModal) {
+    if (wasCreating && !isCreating && showModal) {
       // Task was created successfully
       setShowModal(false);
       setSuccessMessage('✓ Task created successfully');
+      setWasCreating(false);
     }
-  }, [isCreating, showModal]);
+    
+    // Update wasCreating when isCreating changes
+    if (isCreating && !wasCreating) {
+      setWasCreating(true);
+    }
+  }, [isCreating, showModal, wasCreating]);
 
   const pendingCount = tasks.filter((t) => t.status === 'pending').length;
   const inProgressCount = tasks.filter((t) => t.status === 'in-progress').length;
@@ -80,7 +87,12 @@ export default function TaskList() {
 
         {/* Action Button */}
         <button
-          onClick={() => setShowModal(true)}
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowModal(true);
+          }}
           disabled={isCreating}
           className="px-4 py-2 rounded-lg font-medium text-sm transition-all disabled:opacity-50"
           style={{
@@ -142,7 +154,12 @@ export default function TaskList() {
             No tasks yet. Create your first task to get started! 🚀
           </p>
           <button
-            onClick={() => setShowModal(true)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowModal(true);
+            }}
             className="text-sm font-medium px-3 py-1 rounded transition-all"
             style={{
               color: 'var(--accent-success)',

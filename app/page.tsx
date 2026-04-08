@@ -594,8 +594,11 @@ function Hero() {
 }
 
 "use client";
-;
 
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+
+// ─── Theme Toggle ─────────────────────────────────────────────
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -605,9 +608,6 @@ function ThemeToggle() {
   }, []);
 
   if (!mounted) return null;
-
-
-}
 
   return (
     <button
@@ -619,27 +619,36 @@ function ThemeToggle() {
   );
 }
 
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
+// ─── Main Dashboard ───────────────────────────────────────────
 export default function SyncWiseDashboard() {
   const [activeNav, setActiveNav] = useState("overview");
   const [hoveredTask, setHoveredTask] = useState(null);
 
   return (
-   <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
+      
       {/* Noise texture overlay */}
-      <div className="fixed inset-0 pointer-events-none z-50 opacity-[0.025]"
-        style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")", backgroundSize: "128px 128px" }} />
-
-      {/* Global grid lines (extremely subtle) */}
-      <div className="fixed inset-0 pointer-events-none"
+      <div
+        className="fixed inset-0 pointer-events-none z-50 opacity-[0.025]"
         style={{
-          backgroundImage: "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)",
+          backgroundImage:
+            "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E\")",
+          backgroundSize: "128px 128px",
+        }}
+      />
+
+      {/* Grid lines */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)",
           backgroundSize: "64px 64px",
-        }} />
+        }}
+      />
 
       <Sidebar active={activeNav} onNav={setActiveNav} />
 
-      {/* Main */}
       <main className="flex-1 overflow-auto">
         <div className="max-w-6xl mx-auto px-6 py-8">
 
@@ -648,28 +657,42 @@ export default function SyncWiseDashboard() {
             animate="visible"
             variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
           >
+
+            {/* Theme Toggle */}
             <div className="flex justify-end mb-4">
               <ThemeToggle />
             </div>
 
-              <Hero />
+            <Hero />
 
             {/* Metrics */}
-            <motion.div variants={fadeUp} custom={1} className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+            <motion.div
+              variants={fadeUp}
+              custom={1}
+              className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8"
+            >
               {METRICS.map((m, i) => (
                 <MetricCard key={m.label} {...m} index={i} />
               ))}
             </motion.div>
 
-            {/* Main split: tasks + AI */}
+            {/* Tasks + AI */}
             <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-5 mb-5">
 
-              {/* Tasks panel */}
+              {/* Tasks */}
               <div>
-                <motion.div variants={fadeUp} custom={2} className="flex items-center justify-between mb-4">
+                <motion.div
+                  variants={fadeUp}
+                  custom={2}
+                  className="flex items-center justify-between mb-4"
+                >
                   <div>
-                    <h2 className="text-sm font-semibold text-white/70">Active Tasks</h2>
-                    <p className="text-xs text-white/25 mt-0.5">{TASKS.length} tasks · 2 critical</p>
+                    <h2 className="text-sm font-semibold text-white/70">
+                      Active Tasks
+                    </h2>
+                    <p className="text-xs text-white/25 mt-0.5">
+                      {TASKS.length} tasks · 2 critical
+                    </p>
                   </div>
                   <button className="text-xs font-medium text-white/35 hover:text-white/60 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] px-3 py-1.5 rounded-lg transition-all duration-200">
                     + Add task
@@ -693,41 +716,10 @@ export default function SyncWiseDashboard() {
                 <motion.div variants={fadeUp} custom={3}>
                   <AIPanel hoveredTask={hoveredTask} />
                 </motion.div>
-
-                {/* Quick stats card */}
-                <motion.div variants={fadeUp} custom={4}>
-                  <GlowCard className="bg-white/[0.025] border border-white/[0.06] rounded-2xl overflow-hidden" intensity={0.1}>
-                    <div className="px-4 py-3 border-b border-white/[0.05]">
-                      <span className="text-xs font-semibold text-white/50 uppercase tracking-widest">Sprint Health</span>
-                    </div>
-                    <div className="p-4 space-y-3">
-                      {[
-                        { label: "Completion rate", value: 68, color: "bg-indigo-500" },
-                        { label: "Scope creep", value: 23, color: "bg-amber-400" },
-                        { label: "Team morale", value: 74, color: "bg-emerald-400" },
-                      ].map(item => (
-                        <div key={item.label}>
-                          <div className="flex justify-between text-xs mb-1.5">
-                            <span className="text-white/40">{item.label}</span>
-                            <span className="text-white/60 font-medium tabular-nums">{item.value}%</span>
-                          </div>
-                          <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${item.value}%` }}
-                              transition={{ duration: 1.1, ease: EASING, delay: 0.6 }}
-                              className={`h-full rounded-full ${item.color}`}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </GlowCard>
-                </motion.div>
               </div>
+
             </div>
 
-            {/* Team Grid */}
             <TeamGrid />
 
           </motion.div>

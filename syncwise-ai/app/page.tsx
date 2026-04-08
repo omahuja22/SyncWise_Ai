@@ -1,49 +1,63 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { useTasks } from "@/hooks/useTasks";
 
 export default function Home() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    testConnection();
-  }, []);
-
-  const testConnection = async () => {
-    const { data, error } = await supabase.from("tasks").select("*");
-
-    console.log("DATA:", data);
-    console.log("ERROR:", error);
-
-    if (data) setTasks(data);
-    setLoading(false);
-  };
+  const { tasks, loading, error } = useTasks();
 
   return (
     <div className="min-h-screen bg-black text-white p-6">
-      <h1 className="text-2xl font-bold mb-4">Supabase Connection Test</h1>
+      <h1 className="text-2xl font-bold mb-6 tracking-tight">
+        Tasks Overview
+      </h1>
 
-      {loading && <p>Loading...</p>}
+      {loading && (
+        <p className="text-zinc-400 animate-pulse">Loading tasks...</p>
+      )}
+
+      {error && (
+        <p className="text-red-500">Error: {error}</p>
+      )}
 
       {!loading && tasks.length === 0 && (
-        <p>No tasks found (but connection is working ✅)</p>
+        <p className="text-zinc-500">
+          No tasks yet. Create your first task 🚀
+        </p>
       )}
 
-      {!loading && tasks.length > 0 && (
-        <div className="space-y-3">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              className="p-4 border border-white/10 rounded-lg bg-white/5"
-            >
-              <p className="font-semibold">{task.title}</p>
-              <p className="text-sm text-zinc-400">{task.status}</p>
+      <div className="grid gap-4">
+        {tasks.map((task) => (
+          <div
+            key={task.id}
+            className="p-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md hover:bg-white/10 transition-all duration-200"
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="font-semibold text-lg">
+                {task.title}
+              </h2>
+
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  task.status === "Done"
+                    ? "bg-green-500/20 text-green-400"
+                    : task.status === "In Progress"
+                    ? "bg-yellow-500/20 text-yellow-400"
+                    : "bg-zinc-500/20 text-zinc-400"
+                }`}
+              >
+                {task.status}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+
+            <p className="text-sm text-zinc-400 mt-2">
+              Deadline:{" "}
+              {task.deadline
+                ? new Date(task.deadline).toLocaleString()
+                : "No deadline"}
+            </p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

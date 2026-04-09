@@ -23,7 +23,7 @@ interface UseTasksReturn {
   isUpdating: string | null;
 }
 
-export const useTasks = (userId?: string): UseTasksReturn => {
+export const useTasks = (): UseTasksReturn => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export const useTasks = (userId?: string): UseTasksReturn => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getTasks(userId);
+      const data = await getTasks();
       setTasks(data || []);
     } catch (err: any) {
       setError(err.message);
@@ -43,7 +43,7 @@ export const useTasks = (userId?: string): UseTasksReturn => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     fetchTasks();
@@ -56,8 +56,9 @@ export const useTasks = (userId?: string): UseTasksReturn => {
       try {
         setIsCreating(true);
         setError(null);
-        const newTask = await createTask(title, userId, deadline, points);
-        setTasks((prev) => [newTask, ...prev]);
+        await createTask(title, deadline, points);
+        // Auto-refresh tasks from server after creation
+        await fetchTasks();
       } catch (err: any) {
         setError(err.message);
         console.error("Error creating task:", err);
@@ -65,7 +66,7 @@ export const useTasks = (userId?: string): UseTasksReturn => {
         setIsCreating(false);
       }
     },
-    [userId]
+    [fetchTasks]
   );
 
   const removeTask = useCallback(async (taskId: string) => {

@@ -1,18 +1,12 @@
 import { supabase } from "@/lib/supabase";
 import { Task, TaskStatus } from "@/app/data/tasks";
 
-// Get all tasks for user
-export const getTasks = async (userId?: string) => {
-  let query = supabase
+// Get all tasks
+export const getTasks = async () => {
+  const { data, error } = await supabase
     .from("tasks")
     .select("*")
     .order("created_at", { ascending: false });
-
-  if (userId) {
-    query = query.eq("user_id", userId);
-  }
-
-  const { data, error } = await query;
 
   if (error) throw new Error(error.message);
 
@@ -35,28 +29,35 @@ export const getTaskById = async (taskId: string) => {
 // Create new task
 export const createTask = async (
   title: string,
-  userId?: string,
   deadline?: string,
-  points: number = 10
+  points: number = 10,
+  teamId?: string
 ) => {
+  const payload = {
+    title,
+    status: "pending" as TaskStatus,
+    deadline: deadline || null,
+    points,
+    assigned_to: null,
+    team_id: teamId || null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  console.log("Creating task with payload:", payload);
+
   const { data, error } = await supabase
     .from("tasks")
-    .insert([
-      {
-        title,
-        status: "pending",
-        user_id: userId,
-        deadline,
-        points,
-        assigned_to: { name: "Unassigned", avatar: "U" },
-        created_at: new Date().toISOString(),
-      },
-    ])
+    .insert([payload])
     .select()
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Task creation error:", error);
+    throw new Error(`Failed to create task: ${error.message}`);
+  }
 
+  console.log("Task created successfully:", data);
   return data;
 };
 

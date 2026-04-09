@@ -161,9 +161,45 @@ export const getSession = async () => {
   }
 };
 
+// Sign in with Google
+export const signInWithGoogle = async (): Promise<{ error: AuthError | null }> => {
+  try {
+    console.log("🔹 [authService] Signing in with Google");
+    
+    const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/auth/setup-profile` : '/auth/setup-profile';
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+
+    if (error) {
+      console.error("❌ [authService] Google signin error:", error.message);
+      return { error: { message: error.message, code: error.code } };
+    }
+
+    console.log("✅ [authService] Google signin initiated");
+    return { error: null };
+  } catch (err: any) {
+    console.error("❌ [authService] Google signin exception:", err);
+    return {
+      error: { message: err.message || "Google signin failed" },
+    };
+  }
+};
+
 // Listen to auth state changes
 export const onAuthStateChange = (callback: (user: AuthUser | null) => void) => {
   return supabase.auth.onAuthStateChange(async (event, session) => {
+    // Handle invalid refresh token
+    if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+      console.log('ℹ️  [authService] Auth session invalid or expired');
+      callback(null);
+      return;
+    }
+
     if (session?.user) {
       callback({
         id: session.user.id,

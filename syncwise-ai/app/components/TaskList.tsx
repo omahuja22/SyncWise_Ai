@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTasks } from '@/hooks/useTasks';
 import TaskCard from './TaskCard';
 import CreateTaskModal from './CreateTaskModal';
@@ -20,6 +20,7 @@ export default function TaskList() {
   
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const previousTaskCountRef = useRef(0);
 
   // Clear success message after 3 seconds
   useEffect(() => {
@@ -29,34 +30,26 @@ export default function TaskList() {
     }
   }, [successMessage]);
 
-  // Show success message when task creation completes
+  // Show success message only when a new task is actually added
   useEffect(() => {
-    console.log('🔹 [TaskList.useEffect] state: isCreating=' + isCreating + ' | error=' + (error ? 'YES' : 'NO'));
-    if (!isCreating && !error && showModal) {
-      console.log('✅ [TaskList.useEffect] Task created successfully, showing success message');
-      setSuccessMessage("✓ Task created successfully");
+    if (!isCreating && showModal && tasks.length > previousTaskCountRef.current) {
+      setSuccessMessage(`✓ Task created (${tasks.length} total)`);
+      setShowModal(false);
+      previousTaskCountRef.current = tasks.length;
     }
-  }, [isCreating, error, showModal]);
+  }, [isCreating, showModal, tasks.length]);
 
   const pendingCount = tasks.filter((t) => t.status === 'pending').length;
   const inProgressCount = tasks.filter((t) => t.status === 'in-progress').length;
   const doneCount = tasks.filter((t) => t.status === 'done').length;
 
-  const handleCreateTask = async (
+  const handleCreateTask = useCallback(async (
     title: string,
     deadline?: string,
     points?: number
   ) => {
-    console.log('🔹 [handleCreateTask] START - title:', title);
-    try {
-      console.log('🔹 [handleCreateTask] Calling addTask...');
-      await addTask(title, deadline, points);
-      console.log('✅ [handleCreateTask] SUCCESS - addTask completed');
-    } catch (err: any) {
-      console.error('❌ [handleCreateTask] FAILED:', err?.message || err);
-      throw err;
-    }
-  };
+    await addTask(title, deadline, points);
+  }, [addTask]);
 
   return (
     <div className="space-y-6 p-6">

@@ -9,6 +9,7 @@ import {
   cycleTaskStatus,
 } from "@/services/taskService";
 import { Task } from "@/app/data/tasks";
+import { useAuth } from "@/app/contexts/AuthContext";
 
 interface UseTasksReturn {
   tasks: Task[];
@@ -24,6 +25,7 @@ interface UseTasksReturn {
 }
 
 export const useTasks = (): UseTasksReturn => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,10 +35,10 @@ export const useTasks = (): UseTasksReturn => {
 
   const fetchTasks = useCallback(async () => {
     try {
-      console.log('🔹 [fetchTasks] Querying Supabase...');
+      console.log('🔹 [fetchTasks] Querying Supabase for user:', user?.id);
       setLoading(true);
       setError(null);
-      const data = await getTasks();
+      const data = await getTasks(user?.id);
       console.log('✅ [fetchTasks] Got', (data?.length || 0), 'tasks');
       setTasks(data || []);
       console.log('✅ [fetchTasks] State.tasks updated');
@@ -47,39 +49,73 @@ export const useTasks = (): UseTasksReturn => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
 
+  // Auto-load sample tasks for demo mode if list is empty
+  useEffect(() => {
+    const loadSampleTasks = async () => {
+      if (
+        !loading && 
+        tasks.length === 0 && 
+        !error && 
+        user?.id &&
+        !isCreating
+      ) {
+        const sampleTasks = [
+          { title: 'Design dashboard mockups', deadline: '2026-04-15', points: 8 },
+          { title: 'Setup database schema', deadline: '2026-04-18', points: 13 },
+          { title: 'Implement API endpoints', deadline: '2026-04-20', points: 21 },
+        ];
+
+        try {
+          for (const task of sampleTasks) {
+            await createTask(task.title, task.deadline, task.points, user.id, undefined, null);
+          }
+          await fetchTasks();
+        } catch (err: any) {
+          // Silent fail - don't break demo if samples can't load
+        }
+      }
+    };
+
+    loadSampleTasks();
+  }, [loading, tasks.length, error, user?.id, isCreating, fetchTasks]);
+
   const addTask = useCallback(
     async (title: string, deadline?: string, points: number = 10) => {
-      console.log('🔹 [addTask] START');
       if (!title.trim()) {
-        console.warn('⚠️  [addTask] Title empty');
-        return;
+        throw new Error("Task title is required");
+      }
+
+      if (!user?.id) {
+        throw new Error("User not authenticated");
       }
 
       try {
         setIsCreating(true);
         setError(null);
-        console.log('🔹 [addTask] Inserting via createTask...');
-        const newTask = await createTask(title, deadline, points, undefined, null);
-        console.log('✅ [addTask] Insert OK, ID:', newTask?.id);
-        console.log('🔹 [addTask] Fetching latest tasks from DB...');
+
+        const newTask = await createTask(title, deadline, points, user.id, undefined, null);
+
+        if (!newTask) {
+          throw new Error("Task creation returned no data");
+        }
+
         await fetchTasks();
-        console.log('✅ [addTask] UI refreshed - tasks reloaded');
+        return newTask;
       } catch (err: any) {
         const errorMsg = err.message || "Failed to create task";
-        console.error('❌ [addTask] FAILED:', errorMsg);
         setError(errorMsg);
         throw err;
       } finally {
         setIsCreating(false);
       }
     },
-    [fetchTasks]
+    [user?.id, fetchTasks]
   );
 
   const removeTask = useCallback(async (taskId: string) => {

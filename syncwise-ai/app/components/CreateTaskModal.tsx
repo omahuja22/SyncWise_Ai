@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -24,9 +24,11 @@ export default function CreateTaskModal({
   const [localError, setLocalError] = useState<string | null>(null);
 
   // 🔥 FIX 4: Reset ONLY when opening, NOT closing
+  // Note: Resetting form state when modal opens is a safe pattern
   useEffect(() => {
     if (isOpen) {
       console.log('🔹 [CreateTaskModal.useEffect] Modal opened, clearing form');
+      // React batches these setState calls automatically
       setTitle('');
       setDeadline('');
       setPoints('10');
@@ -39,26 +41,18 @@ export default function CreateTaskModal({
     e.preventDefault();
 
     if (!title.trim()) {
-      console.warn('⚠️  [handleSubmit] Title is empty');
       setLocalError('Task title is required');
       return;
     }
 
     try {
       setLocalError(null);
-      console.log('🚀 [handleSubmit] Creating task...');
       await onCreate(title, deadline || undefined, parseInt(points) || 10);
-      console.log('✅ [handleSubmit] Task created successfully');
-
-      // 🔥 Delay closing to prevent animation conflict
-      setTimeout(() => {
-        console.log('✅ [handleSubmit] Closing modal after animation');
-        onClose();
-      }, 200);
-
-    } catch (err: any) {
-      console.error('❌ [handleSubmit] Error:', err?.message || err);
-      setLocalError(err.message || 'Failed to create task');
+      // Don't close immediately - let parent component manage the close
+      setTimeout(() => onClose(), 800);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create task';
+      setLocalError(errorMessage);
     }
   };
 

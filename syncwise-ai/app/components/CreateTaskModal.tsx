@@ -23,8 +23,10 @@ export default function CreateTaskModal({
   const [points, setPoints] = useState('10');
   const [localError, setLocalError] = useState<string | null>(null);
 
+  // 🔥 FIX 4: Reset ONLY when opening, NOT closing
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      console.log('🔹 [CreateTaskModal.useEffect] Modal opened, clearing form');
       setTitle('');
       setDeadline('');
       setPoints('10');
@@ -32,21 +34,30 @@ export default function CreateTaskModal({
     }
   }, [isOpen]);
 
+  // 🔥 FIX 5: Handle Submit (FINAL)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!title.trim()) {
+      console.warn('⚠️  [handleSubmit] Title is empty');
       setLocalError('Task title is required');
       return;
     }
 
     try {
       setLocalError(null);
+      console.log('🚀 [handleSubmit] Creating task...');
       await onCreate(title, deadline || undefined, parseInt(points) || 10);
-      setTitle('');
-      setDeadline('');
-      setPoints('10');
-      onClose();
+      console.log('✅ [handleSubmit] Task created successfully');
+
+      // 🔥 Delay closing to prevent animation conflict
+      setTimeout(() => {
+        console.log('✅ [handleSubmit] Closing modal after animation');
+        onClose();
+      }, 200);
+
     } catch (err: any) {
+      console.error('❌ [handleSubmit] Error:', err?.message || err);
       setLocalError(err.message || 'Failed to create task');
     }
   };
@@ -54,36 +65,48 @@ export default function CreateTaskModal({
   const displayError = localError || error;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-          />
+    <>
+      {/* 🔥 FIX 1: Modal wrapper - NEVER unmounts, uses animation variants */}
+      <motion.div
+        key="modal-wrapper"
+        initial={false}
+        animate={isOpen ? "open" : "closed"}
+        variants={{
+          open: { opacity: 1, pointerEvents: "auto" as const },
+          closed: { opacity: 0, pointerEvents: "none" as const }
+        }}
+        transition={{ duration: 0.2 }}
+        className="fixed inset-0 z-50"
+      >
+        {/* 🔥 FIX 2: Backdrop - state-controlled animation */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isOpen ? 1 : 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+        {/* 🔥 FIX 3: Modal container - state-controlled animation */}
+        <motion.div
+          initial={false}
+          animate={{
+            opacity: isOpen ? 1 : 0,
+            scale: isOpen ? 1 : 0.95,
+            y: isOpen ? 0 : 20
+          }}
+          transition={{ duration: 0.2 }}
+          className="fixed inset-0 flex items-center justify-center pointer-events-none"
+        >
+          <div
+            className="relative rounded-xl p-6 space-y-4 max-w-md w-full mx-4 pointer-events-auto"
+            style={{
+              backgroundColor: 'var(--card-bg)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
+            }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="relative rounded-xl p-6 space-y-4 max-w-md w-full mx-4 pointer-events-auto"
-              style={{
-                backgroundColor: 'var(--card-bg)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
               {/* Header */}
               <div className="flex items-center justify-between">
                 <h2
@@ -255,8 +278,8 @@ export default function CreateTaskModal({
               </form>
             </div>
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
+        </motion.div>
+      </>
+    );
+  }
+

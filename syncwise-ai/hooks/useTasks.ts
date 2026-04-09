@@ -33,13 +33,17 @@ export const useTasks = (): UseTasksReturn => {
 
   const fetchTasks = useCallback(async () => {
     try {
+      console.log('🔹 [fetchTasks] Querying Supabase...');
       setLoading(true);
       setError(null);
       const data = await getTasks();
+      console.log('✅ [fetchTasks] Got', (data?.length || 0), 'tasks');
       setTasks(data || []);
+      console.log('✅ [fetchTasks] State.tasks updated');
     } catch (err: any) {
-      setError(err.message);
-      console.error("Error fetching tasks:", err);
+      const message = err.message || 'Unknown error';
+      console.error('❌ [fetchTasks] Failed:', message);
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -51,17 +55,26 @@ export const useTasks = (): UseTasksReturn => {
 
   const addTask = useCallback(
     async (title: string, deadline?: string, points: number = 10) => {
-      if (!title.trim()) return;
+      console.log('🔹 [addTask] START');
+      if (!title.trim()) {
+        console.warn('⚠️  [addTask] Title empty');
+        return;
+      }
 
       try {
         setIsCreating(true);
         setError(null);
-        await createTask(title, deadline, points);
-        // Auto-refresh tasks from server after creation
+        console.log('🔹 [addTask] Inserting via createTask...');
+        const newTask = await createTask(title, deadline, points, undefined, null);
+        console.log('✅ [addTask] Insert OK, ID:', newTask?.id);
+        console.log('🔹 [addTask] Fetching latest tasks from DB...');
         await fetchTasks();
+        console.log('✅ [addTask] UI refreshed - tasks reloaded');
       } catch (err: any) {
-        setError(err.message);
-        console.error("Error creating task:", err);
+        const errorMsg = err.message || "Failed to create task";
+        console.error('❌ [addTask] FAILED:', errorMsg);
+        setError(errorMsg);
+        throw err;
       } finally {
         setIsCreating(false);
       }

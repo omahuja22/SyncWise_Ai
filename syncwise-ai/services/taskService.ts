@@ -1,12 +1,29 @@
 import { supabase } from "@/lib/supabase";
 import { Task, TaskStatus } from "@/app/data/tasks";
 
-// Get all tasks
-export const getTasks = async () => {
-  const { data, error } = await supabase
+// Helper: Ensure assigned_to is valid UUID string or null (never an object)
+const sanitizeAssignedTo = (value: any): string | null => {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") {
+    // Validate UUID format (basic check)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(value) ? value : null;
+  }
+  // Reject objects or any other type
+  return null;
+};
+
+// Get all tasks for a specific user
+export const getTasks = async (userId?: string) => {
+  let query = supabase
     .from("tasks")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .select("*");
+  
+  if (userId) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
 
@@ -31,20 +48,22 @@ export const createTask = async (
   title: string,
   deadline?: string,
   points: number = 10,
-  teamId?: string
+  teamId?: string,
+  assignedTo?: string | null
 ) => {
+  const sanitized_assigned_to = sanitizeAssignedTo(assignedTo);
   const payload = {
     title,
     status: "pending" as TaskStatus,
     deadline: deadline || null,
     points,
-    assigned_to: null,
+    assigned_to: sanitized_assigned_to,
     team_id: teamId || null,
     created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
   };
 
-  console.log("Creating task with payload:", payload);
+  console.log("🔹 [createTask] Insert payload:", payload);
+  console.log("   assigned_to sanitized to:", sanitized_assigned_to, "(type:", typeof sanitized_assigned_to, ")");
 
   const { data, error } = await supabase
     .from("tasks")
@@ -53,11 +72,11 @@ export const createTask = async (
     .single();
 
   if (error) {
-    console.error("Task creation error:", error);
+    console.error("❌ [createTask] Supabase error:", error.message);
     throw new Error(`Failed to create task: ${error.message}`);
   }
 
-  console.log("Task created successfully:", data);
+  console.log("✅ [createTask] Inserted row ID:", data?.id);
   return data;
 };
 
@@ -68,14 +87,18 @@ export const updateTaskStatus = async (
 ) => {
   const { data, error } = await supabase
     .from("tasks")
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status })
     .eq("id", taskId)
-    .select()
-    .single();
+    .select();
 
   if (error) throw new Error(error.message);
+  
+  // Handle array response safely
+  if (!data || data.length === 0) {
+    throw new Error(`Task ${taskId} not found`);
+  }
 
-  return data;
+  return data[0];
 };
 
 // Update task (generic)
@@ -85,14 +108,18 @@ export const updateTask = async (
 ) => {
   const { data, error } = await supabase
     .from("tasks")
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(updates)
     .eq("id", taskId)
-    .select()
-    .single();
+    .select();
 
   if (error) throw new Error(error.message);
+  
+  // Handle array response safely
+  if (!data || data.length === 0) {
+    throw new Error(`Task ${taskId} not found`);
+  }
 
-  return data;
+  return data[0];
 };
 
 // Delete task

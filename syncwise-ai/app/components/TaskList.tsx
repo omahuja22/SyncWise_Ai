@@ -20,7 +20,6 @@ export default function TaskList() {
   
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [wasCreating, setWasCreating] = useState(false);
 
   // Clear success message after 3 seconds
   useEffect(() => {
@@ -30,20 +29,14 @@ export default function TaskList() {
     }
   }, [successMessage]);
 
-  // Track when task creation completes (isCreating goes from true to false)
+  // Show success message when task creation completes
   useEffect(() => {
-    if (wasCreating && !isCreating && showModal) {
-      // Task was created successfully
-      setShowModal(false);
-      setSuccessMessage('✓ Task created successfully');
-      setWasCreating(false);
+    console.log('🔹 [TaskList.useEffect] state: isCreating=' + isCreating + ' | error=' + (error ? 'YES' : 'NO'));
+    if (!isCreating && !error && showModal) {
+      console.log('✅ [TaskList.useEffect] Task created successfully, showing success message');
+      setSuccessMessage("✓ Task created successfully");
     }
-    
-    // Update wasCreating when isCreating changes
-    if (isCreating && !wasCreating) {
-      setWasCreating(true);
-    }
-  }, [isCreating, showModal, wasCreating]);
+  }, [isCreating, error, showModal]);
 
   const pendingCount = tasks.filter((t) => t.status === 'pending').length;
   const inProgressCount = tasks.filter((t) => t.status === 'in-progress').length;
@@ -54,11 +47,14 @@ export default function TaskList() {
     deadline?: string,
     points?: number
   ) => {
+    console.log('🔹 [handleCreateTask] START - title:', title);
     try {
+      console.log('🔹 [handleCreateTask] Calling addTask...');
       await addTask(title, deadline, points);
-    } catch (err) {
-      // Error is handled by hook and displayed in modal
-      console.error('Task creation error:', err);
+      console.log('✅ [handleCreateTask] SUCCESS - addTask completed');
+    } catch (err: any) {
+      console.error('❌ [handleCreateTask] FAILED:', err?.message || err);
+      throw err;
     }
   };
 
@@ -89,9 +85,11 @@ export default function TaskList() {
         <button
           type="button"
           onClick={(e) => {
+            console.log('[TaskList] Add Task button clicked');
             e.preventDefault();
             e.stopPropagation();
             setShowModal(true);
+            console.log('[TaskList] Modal state set to true');
           }}
           disabled={isCreating}
           className="px-4 py-2 rounded-lg font-medium text-sm transition-all disabled:opacity-50"
@@ -156,9 +154,11 @@ export default function TaskList() {
           <button
             type="button"
             onClick={(e) => {
+              console.log('[TaskList] Create Task button (empty state) clicked');
               e.preventDefault();
               e.stopPropagation();
               setShowModal(true);
+              console.log('[TaskList] Modal state set to true');
             }}
             className="text-sm font-medium px-3 py-1 rounded transition-all"
             style={{

@@ -22,7 +22,7 @@ export default function AuthPage() {
       
       if (hasProfile) {
         console.log("✅ [AuthPage] Profile exists, redirecting to dashboard");
-        router.push("/dashboard/tasks");
+        router.push("/dashboard");
       } else {
         console.log("⚠️  [AuthPage] No profile found, redirecting to setup");
         router.push("/auth/setup-profile");

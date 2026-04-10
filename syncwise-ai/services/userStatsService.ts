@@ -99,6 +99,33 @@ export const updateUserTotalPoints = async (
   return data;
 };
 
+// Upsert user stats (create if not exist, update if exists)
+export const upsertUserStats = async (
+  userId: string,
+  updates: { total_points?: number; tasks_completed?: number }
+) => {
+  const { data, error } = await supabase
+    .from("user_stats")
+    .upsert(
+      {
+        user_id: userId,
+        ...updates,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    )
+    .select()
+    .single();
+
+  if (error) {
+    console.error("❌ [upsertUserStats] Error:", error.message);
+    throw error;
+  }
+
+  console.log("✅ [upsertUserStats] User stats updated:", { userId, ...updates });
+  return data;
+};
+
 // Increment tasks completed
 export const incrementTasksCompleted = async (userId: string) => {
   const stats = await getUserStats(userId);

@@ -1,15 +1,37 @@
 'use client';
 
-import { useTasks } from '@/hooks/useTasks';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import UserStatsDisplay from '../UserStatsDisplay';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useTeams } from '@/app/contexts/TeamContext';
+import { getTeamTasks } from '@/services/taskService';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+
+interface Stats {
+  totalTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  inProgressTasks: number;
+  completionRate: number;
+  totalTeamPoints: number;
+}
 
 export default function OverviewPage() {
-  const { tasks, loading } = useTasks();
-  const { profile } = useUserProfile();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { selectedTeamId } = useTeams();
+  const [stats, setStats] = useState<Stats>({
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    inProgressTasks: 0,
+    completionRate: 0,
+    totalTeamPoints: 0,
+  });
+  const [loading, setLoading] = useState(true);
   const [timeGreeting, setTimeGreeting] = useState('Good morning');
+  const [userName, setUserName] = useState('User');
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -18,41 +40,88 @@ export default function OverviewPage() {
     else setTimeGreeting('Good evening');
   }, []);
 
-  const totalTasks = tasks.length;
-  const inProgressTasks = tasks.filter((t) => t.status === 'in-progress').length;
-  const completedTasks = tasks.filter((t) => t.status === 'done').length;
-  const pendingTasks = tasks.filter((t) => t.status === 'pending').length;
+  // Fetch user name
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (!user?.id) return;
+      
+      try {
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .single();
+        
+        if (profile?.full_name) {
+          setUserName(profile.full_name);
+        }
+      } catch (error) {
+        console.error("Error fetching user name:", error);
+      }
+    };
 
-  const getInitials = () => {
-    if (profile?.full_name) {
-      return profile.full_name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    return '?';
-  };
+    fetchUserName();
+  }, [user?.id]);
+
+  useEffect(() => {
+    const loadStats = async () => {
+      console.log('📊 [OverviewPage] Loading stats - selectedTeamId:', selectedTeamId, 'user:', user?.id);
+
+      if (!selectedTeamId || !user?.id) {
+        console.log('⚠️  [OverviewPage] Missing selectedTeamId or user');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        // Fetch team tasks using team_id filter
+        const tasks = await getTeamTasks(selectedTeamId);
+        console.log('✅ [OverviewPage] Got tasks:', tasks.length);
+
+        // Compute stats
+        const completed = tasks.filter(t => t.status === 'done').length;
+        const pending = tasks.filter(t => t.status !== 'done').length;
+        const inProgress = tasks.filter(t => t.status === 'in-progress').length;
+        const total = tasks.length;
+        const totalTeamPoints = tasks
+          .filter(t => t.status === 'done')
+          .reduce((sum, t) => sum + (t.points || 0), 0);
+
+        setStats({
+          totalTasks: total,
+          completedTasks: completed,
+          pendingTasks: pending,
+          inProgressTasks: inProgress,
+          completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+          totalTeamPoints: totalTeamPoints,
+        });
+      } catch (error) {
+        console.error('❌ [OverviewPage] Error loading stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadStats();
+  }, [selectedTeamId, user?.id]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2,
-      },
+      transition: { staggerChildren: 0.1, delayChildren: 0.2 },
     },
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5 },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  };
+
+  const getInitials = () => {
+    return (userName || 'User').substring(0, 2).toUpperCase();
   };
 
   return (
@@ -62,101 +131,84 @@ export default function OverviewPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Welcome Section */}
+      {/* Greeting */}
       <motion.div variants={itemVariants} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                style={{ backgroundColor: 'rgb(59, 130, 246)' }}
-              >
-                {getInitials()}
-              </div>
-              <h1
-                className="text-3xl md:text-4xl font-bold"
-                style={{ color: 'var(--foreground)' }}
-              >
-                {timeGreeting}, {profile?.full_name?.split(' ')[0] || 'Welcome'} 👋
-              </h1>
-            </div>
-            <p style={{ color: 'var(--text-secondary)' }} className="text-lg">
-              Let's build something productive today 🚀
+        <div className="flex items-center gap-3 mb-2">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white"
+            style={{ backgroundColor: 'rgb(59, 130, 246)' }}
+          >
+            {getInitials()}
+          </div>
+          <h1
+            className="text-3xl md:text-4xl font-bold"
+            style={{ color: 'var(--foreground)' }}
+          >
+            {timeGreeting}, {userName} 👋
+          </h1>
+        </div>
+        <p style={{ color: 'var(--text-secondary)' }} className="text-lg">
+          Let's build something productive today 🚀
+        </p>
+      </motion.div>
+
+      {/* Quick Stats Cards */}
+      <motion.div variants={itemVariants} className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Active Tasks', value: stats.inProgressTasks, color: 'rgb(248, 113, 113)' },
+          { label: 'This Week', value: stats.completedTasks, color: 'rgb(34, 197, 94)' },
+          { label: 'Total', value: stats.totalTasks, color: 'rgb(59, 130, 246)' },
+        ].map((stat, i) => (
+          <div
+            key={i}
+            className="rounded-lg p-4 text-center backdrop-blur-sm border"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.06)',
+              borderColor: 'rgba(255, 255, 255, 0.1)',
+            }}
+          >
+            <p style={{ color: 'var(--text-secondary)' }} className="text-xs mb-2">
+              {stat.label}
+            </p>
+            <p className="text-2xl font-bold" style={{ color: stat.color }}>
+              {loading ? '-' : stat.value}
             </p>
           </div>
-        </div>
-
-        {/* Welcome Card */}
-        <motion.div
-          variants={itemVariants}
-          className="rounded-xl p-6 border overflow-hidden relative"
-          style={{
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderColor: 'rgba(59, 130, 246, 0.2)',
-          }}
-          whileHover={{ y: -4 }}
-          transition={{ duration: 0.2 }}
-        >
-          {/* Decorative gradient background */}
-          <div
-            className="absolute inset-0 opacity-5"
-            style={{
-              background: 'linear-gradient(135deg, rgb(59, 130, 246) 0%, rgb(10, 200, 200) 100%)',
-            }}
-          />
-
-          <div className="relative z-10">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-bold mb-2" style={{ color: 'rgb(59, 130, 246)' }}>
-                  ✨ Welcome to Your Dashboard
-                </h3>
-                <p style={{ color: 'var(--text-secondary)' }} className="mb-4">
-                  Track your tasks, monitor progress, and stay productive with AI-powered insights.
-                </p>
-              </div>
-              <span className="text-3xl">📊</span>
-            </div>
-
-            {/* Quick Stats in Welcome Card */}
-            <div className="grid grid-cols-3 gap-3 mt-4">
-              {[
-                { label: 'Active Tasks', value: inProgressTasks, color: 'rgb(248, 113, 113)' },
-                { label: 'This Week', value: completedTasks, color: 'rgb(34, 197, 94)' },
-                { label: 'Total', value: totalTasks, color: 'rgb(59, 130, 246)' },
-              ].map((stat, i) => (
-                <div key={i} className="text-center">
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {stat.label}
-                  </p>
-                  <p className="text-xl font-bold mt-1" style={{ color: stat.color }}>
-                    {loading ? '-' : stat.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
+        ))}
       </motion.div>
 
-      {/* User Stats */}
+      {/* Total Points Section */}
       <motion.div variants={itemVariants}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <UserStatsDisplay />
+        <div
+          className="rounded-lg p-8 backdrop-blur-sm border"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <p style={{ color: 'var(--text-secondary)' }} className="text-sm mb-2">
+            Total Team Points
+          </p>
+          <p
+            className="text-4xl font-bold"
+            style={{ color: 'var(--accent-success)' }}
+          >
+            {loading ? '-' : stats.totalTeamPoints}
+          </p>
         </div>
       </motion.div>
 
-      {/* Task Stats Grid */}
+      {/* Task Overview - ORIGINAL CARDS */}
       <motion.div variants={itemVariants}>
         <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>
           Task Overview
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Tasks', value: totalTasks, color: '#3b82f6', icon: '📋' },
-            { label: 'In Progress', value: inProgressTasks, color: '#f59e0b', icon: '⚙️' },
-            { label: 'Completed', value: completedTasks, color: '#22c55e', icon: '✅' },
-            { label: 'Pending', value: pendingTasks, color: '#6b7280', icon: '⏳' },
+            { label: 'Total Tasks', value: stats.totalTasks, color: '#3b82f6', icon: '📋' },
+            { label: 'In Progress', value: stats.inProgressTasks, color: '#f59e0b', icon: '⚙️' },
+            { label: 'Completed', value: stats.completedTasks, color: '#22c55e', icon: '✅' },
+            { label: 'Pending', value: stats.pendingTasks, color: '#6b7280', icon: '⏳' },
           ].map((stat) => (
             <motion.div
               key={stat.label}
@@ -204,12 +256,12 @@ export default function OverviewPage() {
                   animate={{
                     width:
                       stat.label === 'Total Tasks'
-                        ? `${((totalTasks / Math.max(totalTasks, 10)) * 100) || 0}%`
+                        ? `${((stats.totalTasks / Math.max(stats.totalTasks, 10)) * 100) || 0}%`
                         : stat.label === 'In Progress'
-                        ? `${((inProgressTasks / Math.max(totalTasks, 1)) * 100) || 0}%`
+                        ? `${((stats.inProgressTasks / Math.max(stats.totalTasks, 1)) * 100) || 0}%`
                         : stat.label === 'Completed'
-                        ? `${((completedTasks / Math.max(totalTasks, 1)) * 100) || 0}%`
-                        : `${((pendingTasks / Math.max(totalTasks, 1)) * 100) || 0}%`,
+                        ? `${((stats.completedTasks / Math.max(stats.totalTasks, 1)) * 100) || 0}%`
+                        : `${((stats.pendingTasks / Math.max(stats.totalTasks, 1)) * 100) || 0}%`,
                   }}
                   transition={{ duration: 0.8, ease: 'easeOut' }}
                 />
@@ -219,7 +271,7 @@ export default function OverviewPage() {
         </div>
       </motion.div>
 
-      {/* Quick Actions */}
+      {/* Action Buttons */}
       <motion.div variants={itemVariants}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
@@ -229,6 +281,7 @@ export default function OverviewPage() {
           ].map((action, i) => (
             <motion.button
               key={i}
+              onClick={() => router.push(action.href)}
               className="p-4 rounded-lg border text-left transition-all duration-200 hover:-translate-y-1"
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.04)',

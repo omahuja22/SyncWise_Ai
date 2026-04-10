@@ -6,6 +6,7 @@ interface TaskCardProps {
   task: Task;
   onStatusChange: (taskId: string) => void;
   onDelete: (taskId: string) => void;
+  onComplete?: (taskId: string) => void;
   isDeleting?: boolean;
   isUpdating?: boolean;
 }
@@ -23,6 +24,7 @@ export default function TaskCard({
   task,
   onStatusChange,
   onDelete,
+  onComplete,
   isDeleting = false,
   isUpdating = false,
 }: TaskCardProps) {
@@ -117,37 +119,59 @@ export default function TaskCard({
               <div
                 className="w-6 h-6 rounded-full text-xs font-semibold flex items-center justify-center"
                 style={{
-                  backgroundColor: task.assigned_to?.name 
+                  backgroundColor: task.assigned_to_user?.full_name 
                     ? 'rgba(34, 197, 94, 0.2)' 
                     : 'rgba(107, 114, 128, 0.15)',
-                  color: task.assigned_to?.name ? '#22c55e' : '#9ca3af',
+                  color: task.assigned_to_user?.full_name ? '#22c55e' : '#9ca3af',
                 }}
-                title={task.assigned_to?.name || 'Unassigned'}
+                title={task.assigned_to_user?.full_name || 'Unassigned'}
               >
-                {task.assigned_to?.avatar || getInitials(task.assigned_to?.name)}
+                {task.assigned_to_user?.full_name 
+                  ? getInitials(task.assigned_to_user.full_name)
+                  : '—'}
               </div>
               <span
                 className="text-xs"
                 style={{ color: 'var(--text-secondary)' }}
               >
-                {task.assigned_to?.name || 'Unassigned'}
+                {task.assigned_to_user?.full_name || 'Unassigned'}
               </span>
             </div>
 
-            {/* Status Badge - CLICKABLE */}
-            <button
-              onClick={() => onStatusChange(task.id)}
-              disabled={isUpdating}
-              className="text-xs font-medium px-2 py-1 rounded transition-all hover:scale-105 disabled:opacity-50"
-              style={{
-                backgroundColor: statusInfo?.bg ?? 'rgba(107, 114, 128, 0.1)',
-                color: statusInfo?.text ?? '#9ca3af',
-                border: `1px solid ${statusInfo?.text ?? '#9ca3af'}`,
-                cursor: isUpdating ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isUpdating ? '...' : statusInfo?.label ?? 'Unknown'}
-            </button>
+            {/* Status Badge + Complete Button - CLICKABLE */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onStatusChange(task.id)}
+                disabled={isUpdating}
+                className="text-xs font-medium px-2 py-1 rounded transition-all hover:scale-105 disabled:opacity-50"
+                style={{
+                  backgroundColor: statusInfo?.bg ?? 'rgba(107, 114, 128, 0.1)',
+                  color: statusInfo?.text ?? '#9ca3af',
+                  border: `1px solid ${statusInfo?.text ?? '#9ca3af'}`,
+                  cursor: isUpdating ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isUpdating ? '...' : statusInfo?.label ?? 'Unknown'}
+              </button>
+
+              {/* Complete Button - Show if not done */}
+              {task.status !== 'done' && onComplete && (
+                <button
+                  onClick={() => onComplete(task.id)}
+                  disabled={isUpdating}
+                  className="text-xs font-medium px-2 py-1 rounded transition-all hover:scale-105 disabled:opacity-50"
+                  style={{
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    color: '#22c55e',
+                    border: '1px solid rgba(34, 197, 94, 0.5)',
+                    cursor: isUpdating ? 'not-allowed' : 'pointer',
+                  }}
+                  title="Mark as complete and earn points!"
+                >
+                  {isUpdating ? '...' : '✓'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

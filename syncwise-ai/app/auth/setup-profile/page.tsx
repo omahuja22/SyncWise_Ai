@@ -33,7 +33,7 @@ export default function SetupProfilePage() {
         const exists = await profileExists(user.id);
         if (exists) {
           console.log('✅ [SetupProfilePage] Profile already exists, redirecting to dashboard');
-          router.push('/dashboard/tasks');
+          router.push('/dashboard');
         } else {
           console.log('⚠️  [SetupProfilePage] No profile found, showing form');
         }
@@ -64,7 +64,7 @@ export default function SetupProfilePage() {
       await completeOnboarding(user.id);
 
       console.log('✅ [SetupProfilePage] Profile created, redirecting to dashboard');
-      router.push('/dashboard/tasks');
+      router.push('/dashboard');
     } catch (err: any) {
       const message = err.message || 'Failed to create profile';
       console.error('❌ [SetupProfilePage] Error:', message);

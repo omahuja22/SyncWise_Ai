@@ -7,9 +7,11 @@ import {
   updateTaskStatus,
   deleteTask,
   cycleTaskStatus,
+  completeTask,
 } from "@/services/taskService";
 import { Task } from "@/app/data/tasks";
 import { useAuth } from "@/app/contexts/AuthContext";
+import { useTeams } from "@/app/contexts/TeamContext";
 
 interface UseTasksReturn {
   tasks: Task[];
@@ -19,6 +21,7 @@ interface UseTasksReturn {
   addTask: (title: string, deadline?: string, points?: number) => Promise<void>;
   removeTask: (taskId: string) => Promise<void>;
   updateStatus: (taskId: string) => Promise<void>;
+  completeTask: (taskId: string) => Promise<void>;
   isCreating: boolean;
   isDeleting: string | null;
   isUpdating: string | null;
@@ -26,6 +29,7 @@ interface UseTasksReturn {
 
 export const useTasks = (): UseTasksReturn => {
   const { user } = useAuth();
+  const { selectedTeamId } = useTeams();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,10 +39,10 @@ export const useTasks = (): UseTasksReturn => {
 
   const fetchTasks = useCallback(async () => {
     try {
-      console.log('🔹 [fetchTasks] Querying Supabase for user:', user?.id);
+      console.log('🔹 [fetchTasks] Querying Supabase for user:', user?.id, 'team:', selectedTeamId || 'all');
       setLoading(true);
       setError(null);
-      const data = await getTasks(user?.id);
+      const data = await getTasks(user?.id, selectedTeamId || undefined);
       console.log('✅ [fetchTasks] Got', (data?.length || 0), 'tasks');
       setTasks(data || []);
       console.log('✅ [fetchTasks] State.tasks updated');
@@ -49,41 +53,11 @@ export const useTasks = (): UseTasksReturn => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, selectedTeamId]);
 
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
-
-  // Auto-load sample tasks for demo mode if list is empty
-  useEffect(() => {
-    const loadSampleTasks = async () => {
-      if (
-        !loading && 
-        tasks.length === 0 && 
-        !error && 
-        user?.id &&
-        !isCreating
-      ) {
-        const sampleTasks = [
-          { title: 'Design dashboard mockups', deadline: '2026-04-15', points: 8 },
-          { title: 'Setup database schema', deadline: '2026-04-18', points: 13 },
-          { title: 'Implement API endpoints', deadline: '2026-04-20', points: 21 },
-        ];
-
-        try {
-          for (const task of sampleTasks) {
-            await createTask(task.title, task.deadline, task.points, user.id, undefined, null);
-          }
-          await fetchTasks();
-        } catch (err: any) {
-          // Silent fail - don't break demo if samples can't load
-        }
-      }
-    };
-
-    loadSampleTasks();
-  }, [loading, tasks.length, error, user?.id, isCreating, fetchTasks]);
 
   const addTask = useCallback(
     async (title: string, deadline?: string, points: number = 10) => {
@@ -99,7 +73,7 @@ export const useTasks = (): UseTasksReturn => {
         setIsCreating(true);
         setError(null);
 
-        const newTask = await createTask(title, deadline, points, user.id, undefined, null);
+        const newTask = await createTask(title, deadline, points, user.id, selectedTeamId || undefined, null);
 
         if (!newTask) {
           throw new Error("Task creation returned no data");
@@ -115,7 +89,7 @@ export const useTasks = (): UseTasksReturn => {
         setIsCreating(false);
       }
     },
-    [user?.id, fetchTasks]
+    [user?.id, selectedTeamId, fetchTasks]
   );
 
   const removeTask = useCallback(async (taskId: string) => {
@@ -148,6 +122,22 @@ export const useTasks = (): UseTasksReturn => {
     }
   }, []);
 
+  const completeTaskHandler = useCallback(async (taskId: string) => {
+    try {
+      setIsUpdating(taskId);
+      setError(null);
+      const completedTask = await completeTask(taskId);
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? completedTask : t))
+      );
+    } catch (err: any) {
+      setError(err.message);
+      console.error("Error completing task:", err);
+    } finally {
+      setIsUpdating(null);
+    }
+  }, []);
+
   return {
     tasks,
     loading,
@@ -156,6 +146,7 @@ export const useTasks = (): UseTasksReturn => {
     addTask,
     removeTask,
     updateStatus,
+    completeTask: completeTaskHandler,
     isCreating,
     isDeleting,
     isUpdating,

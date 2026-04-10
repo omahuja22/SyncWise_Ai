@@ -7,6 +7,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { signOut } from '@/services/authService';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import TeamSelector from './TeamSelector';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -153,6 +154,16 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Team Selector */}
+      <div
+        className="px-4 py-3 border-b transition-colors duration-300"
+        style={{
+          borderColor: 'var(--border)',
+        }}
+      >
+        <TeamSelector />
+      </div>
 
       {/* User Profile Section */}
       <div

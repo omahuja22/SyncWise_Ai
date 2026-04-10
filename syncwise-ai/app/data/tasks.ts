@@ -1,16 +1,21 @@
-export type TaskStatus = 'pending' | 'in-progress' | 'done';
+export type TaskStatus = 'pending' | 'in-progress' | 'done' | 'overdue';
+export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Task {
   id: string;
   title: string;
-  assigned_to?: {
-    name?: string;
-    avatar?: string;
+  description?: string;
+  assigned_to?: string | null; // UUID of assigned user
+  assigned_to_user?: {
+    full_name?: string;
+    avatar_url?: string;
   } | null;
   status: TaskStatus;
+  priority?: TaskPriority;
   deadline?: string;
   points: number;
-  user_id?: string;
+  user_id?: string; // Creator
+  team_id?: string; // Which team owns this task
   created_at?: string;
   updated_at?: string;
 }
@@ -19,9 +24,10 @@ export const dummyTasks: Task[] = [
   {
     id: '1',
     title: 'Design dashboard layout',
-    assigned_to: {
-      name: 'Alice Johnson',
-      avatar: 'AJ',
+    assigned_to: 'user-alice',
+    assigned_to_user: {
+      full_name: 'Alice Johnson',
+      avatar_url: undefined,
     },
     status: 'done',
     deadline: '2026-04-05',
@@ -30,9 +36,10 @@ export const dummyTasks: Task[] = [
   {
     id: '2',
     title: 'Implement user authentication',
-    assigned_to: {
-      name: 'Bob Smith',
-      avatar: 'BS',
+    assigned_to: 'user-bob',
+    assigned_to_user: {
+      full_name: 'Bob Smith',
+      avatar_url: undefined,
     },
     status: 'in-progress',
     deadline: '2026-04-12',
@@ -41,9 +48,10 @@ export const dummyTasks: Task[] = [
   {
     id: '3',
     title: 'Create task management API',
-    assigned_to: {
-      name: 'Carol Davis',
-      avatar: 'CD',
+    assigned_to: 'user-carol',
+    assigned_to_user: {
+      full_name: 'Carol Davis',
+      avatar_url: undefined,
     },
     status: 'pending',
     deadline: '2026-04-15',
@@ -52,9 +60,10 @@ export const dummyTasks: Task[] = [
   {
     id: '4',
     title: 'Build leaderboard component',
-    assigned_to: {
-      name: 'David Wilson',
-      avatar: 'DW',
+    assigned_to: 'user-david',
+    assigned_to_user: {
+      full_name: 'David Wilson',
+      avatar_url: undefined,
     },
     status: 'pending',
     deadline: '2026-04-18',
@@ -63,9 +72,10 @@ export const dummyTasks: Task[] = [
   {
     id: '5',
     title: 'Setup database schema',
-    assigned_to: {
-      name: 'Eve Martinez',
-      avatar: 'EM',
+    assigned_to: 'user-eve',
+    assigned_to_user: {
+      full_name: 'Eve Martinez',
+      avatar_url: undefined,
     },
     status: 'in-progress',
     deadline: '2026-04-10',

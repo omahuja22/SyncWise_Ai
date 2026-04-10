@@ -30,7 +30,7 @@ export function MultiStepProfileForm({
     city: initialData.city || '',
     phone: initialData.phone || '',
     dob: initialData.dob || '',
-    gender: initialData.gender || '',
+    gender: initialData.gender || undefined,
     ...initialData,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});

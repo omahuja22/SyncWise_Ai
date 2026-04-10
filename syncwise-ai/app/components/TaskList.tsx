@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTasks } from '@/hooks/useTasks';
+import { useTeams } from '@/app/contexts/TeamContext';
 import TaskCard from './TaskCard';
 import CreateTaskModal from './CreateTaskModal';
 
 export default function TaskList() {
+  const { selectedTeamId } = useTeams();
   const {
     tasks,
     loading,
@@ -13,6 +15,7 @@ export default function TaskList() {
     addTask,
     removeTask,
     updateStatus,
+    completeTask,
     isCreating,
     isDeleting,
     isUpdating,
@@ -21,6 +24,37 @@ export default function TaskList() {
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const previousTaskCountRef = useRef(0);
+
+  useEffect(() => {
+    console.log('📋 [TaskList] Rendered - selectedTeamId:', selectedTeamId, 'tasks:', tasks.length);
+  }, [selectedTeamId, tasks.length]);
+
+  // Early return if no team selected
+  if (!selectedTeamId) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h2
+            className="text-2xl font-semibold mb-2"
+            style={{ color: 'var(--foreground)' }}
+          >
+            Tasks
+          </h2>
+        </div>
+        <div
+          className="rounded-lg p-8 text-center backdrop-blur-sm border"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.06)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <p style={{ color: 'var(--text-secondary)' }}>
+            👈 Select a team in the sidebar to view and manage tasks
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Clear success message after 3 seconds
   useEffect(() => {
@@ -174,6 +208,7 @@ export default function TaskList() {
               task={task}
               onStatusChange={() => updateStatus(task.id)}
               onDelete={() => removeTask(task.id)}
+              onComplete={() => completeTask(task.id)}
               isDeleting={isDeleting === task.id}
               isUpdating={isUpdating === task.id}
             />

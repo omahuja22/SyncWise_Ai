@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/app/components/Sidebar';
 import { useAuth } from '@/app/contexts/AuthContext';
+import { TeamProvider } from '@/app/contexts/TeamContext';
 
 export default function DashboardLayout({
   children,
@@ -40,13 +41,15 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{
-      backgroundColor: 'var(--background)',
-    }}>
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-    </div>
+    <TeamProvider>
+      <div className="flex h-screen overflow-hidden" style={{
+        backgroundColor: 'var(--background)',
+      }}>
+        <Sidebar />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </TeamProvider>
   );
 }

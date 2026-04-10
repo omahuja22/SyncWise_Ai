@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Task, TaskStatus } from "@/app/data/tasks";
+import { upsertUserStats } from "./userStatsService";
 
 // Helper: Ensure assigned_to is valid UUID string or null (never an object)
 const sanitizeAssignedTo = (value: any): string | null => {
@@ -13,8 +14,27 @@ const sanitizeAssignedTo = (value: any): string | null => {
   return null;
 };
 
+// Get all tasks for a team
+export const getTeamTasks = async (teamId: string): Promise<Task[]> => {
+  console.log("🔹 [getTeamTasks] Fetching tasks for team:", teamId);
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("team_id", teamId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("❌ [getTeamTasks] Error:", error.message);
+    return [];
+  }
+
+  console.log("✅ [getTeamTasks] Retrieved", data?.length || 0, "tasks");
+  return data || [];
+};
+
 // Get all tasks for a specific user
-export const getTasks = async (userId?: string) => {
+export const getTasks = async (userId?: string, teamId?: string) => {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user?.id) {
@@ -23,13 +43,19 @@ export const getTasks = async (userId?: string) => {
   }
 
   const finalUserId = userId || user.id;
-  console.log("🔹 [getTasks] Fetching tasks for user:", finalUserId);
+  console.log("🔹 [getTasks] Fetching tasks for user:", finalUserId, teamId ? `in team: ${teamId}` : '');
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("tasks")
     .select("*")
-    .eq("user_id", finalUserId)
-    .order("created_at", { ascending: false });
+    .eq("user_id", finalUserId);
+
+  // If teamId is provided, filter by team_id
+  if (teamId) {
+    query = query.eq("team_id", teamId);
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
     console.error("❌ [getTasks] Error fetching tasks:", error);
@@ -69,14 +95,16 @@ export const getTaskById = async (taskId: string) => {
   return data;
 };
 
-// Create new task
+// Create new task for a team
 export const createTask = async (
   title: string,
   deadline?: string,
   points: number = 10,
   userId?: string,
   teamId?: string,
-  assignedTo?: string | null
+  assignedTo?: string | null,
+  description?: string,
+  priority?: 'low' | 'medium' | 'high'
 ) => {
   const sanitized_assigned_to = sanitizeAssignedTo(assignedTo);
   
@@ -89,11 +117,17 @@ export const createTask = async (
   }
 
   const finalUserId = userId || user.id;
-  console.log("USER:", user.id);
+
+  // Team ID is required for team-based system
+  if (!teamId) {
+    console.warn("⚠️  [createTask] No team ID provided, using personal task");
+  }
 
   const payload = {
     title,
+    description: description || null,
     status: "pending" as TaskStatus,
+    priority: priority || 'medium',
     deadline: deadline || null,
     points,
     assigned_to: sanitized_assigned_to,
@@ -102,7 +136,7 @@ export const createTask = async (
     created_at: new Date().toISOString(),
   };
 
-  console.log("🔹 [createTask] Inserting task with payload:", payload);
+  console.log("🔹 [createTask] Creating task:", { title, teamId, assignedTo: sanitized_assigned_to });
 
   const { data, error } = await supabase
     .from("tasks")
@@ -110,15 +144,12 @@ export const createTask = async (
     .select()
     .single();
 
-  console.log("INSERT RESULT:", data);
-  console.log("ERROR:", error);
-
   if (error) {
-    console.error("❌ [createTask] Supabase insert failed:", error);
+    console.error("❌ [createTask] Error:", error.message);
     throw error;
   }
 
-  console.log("✅ [createTask] Task created successfully");
+  console.log("✅ [createTask] Task created:", data.id);
   return data;
 };
 
@@ -234,8 +265,76 @@ export const cycleTaskStatus = async (taskId: string) => {
     pending: "in-progress",
     "in-progress": "done",
     done: "pending",
+    overdue: "in-progress",
   };
 
   const newStatus = statusCycle[task.status as TaskStatus];
   return updateTaskStatus(taskId, newStatus);
+};
+
+// Complete task (mark as done + set completed_at + update user points)
+export const completeTask = async (taskId: string) => {
+  console.log(`🔹 [completeTask] Completing task ${taskId}`);
+
+  // STEP 1: Fetch task to get creator_id and points
+  const { data: taskData, error: fetchError } = await supabase
+    .from("tasks")
+    .select("id, user_id, points, status")
+    .eq("id", taskId)
+    .single();
+
+  if (fetchError || !taskData) {
+    console.error("❌ [completeTask] Error fetching task:", fetchError?.message);
+    throw fetchError;
+  }
+
+  // If already done, just return
+  if (taskData.status === "done") {
+    console.log("⚠️  [completeTask] Task already completed");
+    return taskData;
+  }
+
+  // STEP 2: Update task status to done
+  const { data: updatedData, error: updateError } = await supabase
+    .from("tasks")
+    .update({
+      status: "done" as TaskStatus,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+    .select();
+
+  if (updateError || !updatedData || updatedData.length === 0) {
+    console.error("❌ [completeTask] Error:", updateError?.message);
+    throw updateError || new Error("Failed to update task");
+  }
+
+  const updatedTask = updatedData[0];
+
+  // STEP 3: Manually update user points (upsert into user_stats)
+  const points = taskData.points || 10;
+  try {
+    // Get current stats
+    const { data: currentStats } = await supabase
+      .from("user_stats")
+      .select("total_points, tasks_completed")
+      .eq("user_id", taskData.user_id)
+      .single();
+
+    const newPoints = (currentStats?.total_points || 0) + points;
+    const newTasksCompleted = (currentStats?.tasks_completed || 0) + 1;
+
+    // Upsert new stats
+    await upsertUserStats(taskData.user_id, {
+      total_points: newPoints,
+      tasks_completed: newTasksCompleted,
+    });
+
+    console.log(`✅ [completeTask] Task completed and points awarded: +${points}pts`);
+  } catch (pointsError: any) {
+    console.warn("⚠️  [completeTask] Points update failed (non-critical):", pointsError.message);
+    // Don't throw - task is already marked as done
+  }
+
+  return updatedTask;
 };

@@ -90,7 +90,7 @@ export default function CreateTaskModal({
             y: isOpen ? 0 : 20
           }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 flex items-center justify-center pointer-events-none
+          className="fixed inset-0 flex items-center justify-center pointer-events-none"
         >
           <div
             className="relative rounded-xl p-6 space-y-4 max-w-md w-full mx-4 pointer-events-auto"

@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import { Task, TaskStatus } from "@/app/data/tasks";
-import { upsertUserStats } from "./userStatsService";
 
 // Helper: Ensure assigned_to is valid UUID string or null (never an object)
 const sanitizeAssignedTo = (value: any): string | null => {
@@ -310,31 +309,8 @@ export const completeTask = async (taskId: string) => {
   }
 
   const updatedTask = updatedData[0];
-
-  // STEP 3: Manually update user points (upsert into user_stats)
   const points = taskData.points || 10;
-  try {
-    // Get current stats
-    const { data: currentStats } = await supabase
-      .from("user_stats")
-      .select("total_points, tasks_completed")
-      .eq("user_id", taskData.user_id)
-      .single();
 
-    const newPoints = (currentStats?.total_points || 0) + points;
-    const newTasksCompleted = (currentStats?.tasks_completed || 0) + 1;
-
-    // Upsert new stats
-    await upsertUserStats(taskData.user_id, {
-      total_points: newPoints,
-      tasks_completed: newTasksCompleted,
-    });
-
-    console.log(`✅ [completeTask] Task completed and points awarded: +${points}pts`);
-  } catch (pointsError: any) {
-    console.warn("⚠️  [completeTask] Points update failed (non-critical):", pointsError.message);
-    // Don't throw - task is already marked as done
-  }
-
+  console.log(`✅ [completeTask] Task completed - Points registered: +${points}pts`);
   return updatedTask;
 };

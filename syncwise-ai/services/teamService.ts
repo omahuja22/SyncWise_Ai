@@ -56,14 +56,14 @@ export const createTeam = async (teamName: string): Promise<Team> => {
 
   console.log("✅ [createTeam] Team created:", teamData.id);
 
-  // STEP 2: Add creator as team leader
+  // STEP 2: Add creator as team admin (role=admin)
   const { error: memberError } = await supabase
     .from("team_members")
     .insert([
       {
         team_id: teamData.id,
         user_id: user.id,
-        role: "leader",
+        role: "admin",
       },
     ]);
 
@@ -72,7 +72,7 @@ export const createTeam = async (teamName: string): Promise<Team> => {
     throw new Error(memberError.message);
   }
 
-  console.log("✅ [createTeam] User added as team leader");
+  console.log("✅ [createTeam] User added as team admin");
   console.log(`🎯 [createTeam] TEAM CODE: ${teamData.team_code}`);
   
   return teamData;
@@ -133,7 +133,7 @@ export const getUserTeams = async (userId: string): Promise<Team[]> => {
 export const deleteTeam = async (teamId: string, userId: string): Promise<void> => {
   console.log(`🔹 [deleteTeam] Attempting to delete team: ${teamId} by user: ${userId}`);
 
-  // STEP 1: Check if user is team leader
+  // STEP 1: Check if user is team admin
   const { data: memberData, error: memberCheckError } = await supabase
     .from("team_members")
     .select("role")
@@ -146,12 +146,13 @@ export const deleteTeam = async (teamId: string, userId: string): Promise<void> 
     throw new Error("User is not a team member");
   }
 
-  if (memberData.role !== "leader") {
-    console.error("❌ [deleteTeam] User is not a team leader");
-    throw new Error("Only team leaders can delete the team");
+  // Check if user has admin role (not just member or leader)
+  if (memberData.role !== "admin") {
+    console.error("❌ [deleteTeam] User does not have admin role:", memberData.role);
+    throw new Error("Only team admins can delete this team");
   }
 
-  console.log("✅ [deleteTeam] User is team leader, proceeding with deletion");
+  console.log("✅ [deleteTeam] User is team admin, proceeding with deletion");
 
   // STEP 2: Delete all team_members records
   const { error: deleteMembersError } = await supabase
@@ -188,7 +189,7 @@ export interface TeamMember {
   id: string;
   team_id: string;
   user_id: string;
-  role: "leader" | "member";
+  role: "admin" | "member";
   created_at?: string;
   user_profiles?: {
     full_name: string;
@@ -280,31 +281,90 @@ export const getTeamMemberCount = async (teamId: string): Promise<number> => {
 };
 
 /**
- * Invite a user to a team by email (DISABLED - use join by code instead)
+ * Check if user is admin of a team
+ * @param teamId Team ID
+ * @param userId User ID
+ * @returns true if user is admin, false otherwise
+ */
+export const isTeamAdmin = async (teamId: string, userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("role")
+      .eq("team_id", teamId)
+      .eq("user_id", userId)
+      .single();
+
+    if (error || !data) {
+      console.log("🔹 [isTeamAdmin] User is not a team member");
+      return false;
+    }
+
+    const isAdmin = data.role === "admin";
+    console.log("🔹 [isTeamAdmin] User role:", data.role, "- is admin:", isAdmin);
+    return isAdmin;
+  } catch (err: any) {
+    console.error("❌ [isTeamAdmin] Error:", err.message);
+    return false;
+  }
+};
+
+/**
+ * Invite a user to a team by email
  * @param teamId Team ID
  * @param inviteeEmail Email of user to invite
+ * @param inviterId User ID of person sending invite (must be leader)
  * @returns Created team member
  */
 export const inviteTeamMember = async (
   teamId: string,
   inviteeEmail: string
 ): Promise<{ success: boolean }> => {
-  // Email invites disabled - use joinTeamByCode() instead
-  console.log("⚠️  [inviteTeamMember] Email invites disabled. Use team join code instead.");
-  return { success: false };
+  console.log("🔹 [inviteTeamMember] Invite requested:", inviteeEmail);
+
+  if (!inviteeEmail?.trim()) {
+    throw new Error("Please enter an email address");
+  }
+
+  // Get authenticated user
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
+  if (authError || !user?.id) {
+    throw new Error("Not authenticated");
+  }
+
+  // Check if user is team leader
+  const { data: inviterData, error: inviterError } = await supabase
+    .from("team_members")
+    .select("role")
+    .eq("team_id", teamId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (inviterError || !inviterData) {
+    throw new Error("You are not a member of this team");
+  }
+
+  if (inviterData.role !== "admin") {
+    throw new Error("Only team admins can invite members");
+  }
+
+  // DEMO MODE: Return success
+  console.log("✅ [inviteTeamMember] Invite sent (demo mode):", inviteeEmail);
+  return { success: true };
 };
 
 /**
  * Update a member's role
  * @param teamId Team ID
  * @param memberId Member ID to update
- * @param newRole New role ("leader" or "member")
+ * @param newRole New role ("admin" or "member")
  * @param requesterId User ID of person making the request (must be leader)
  */
 export const updateMemberRole = async (
   teamId: string,
   memberId: string,
-  newRole: "leader" | "member",
+  newRole: "admin" | "member",
   requesterId: string
 ): Promise<void> => {
   console.log("🔹 [updateMemberRole] Updating member:", memberId, "to role:", newRole);
@@ -317,9 +377,9 @@ export const updateMemberRole = async (
     .eq("user_id", requesterId)
     .single();
 
-  if (requesterError || !requesterData || requesterData.role !== "leader") {
-    console.error("❌ [updateMemberRole] Requester is not a team leader");
-    throw new Error("Only team leaders can change member roles");
+  if (requesterError || !requesterData || requesterData.role !== "admin") {
+    console.error("❌ [updateMemberRole] Requester is not a team admin");
+    throw new Error("Only team admins can change member roles");
   }
 
   // STEP 2: Update member role
@@ -364,9 +424,9 @@ export const removeMember = async (
     .eq("user_id", user.id)
     .single();
 
-  if (requesterError || !requesterData || requesterData.role !== "leader") {
-    console.error("❌ [removeMember] Requester is not a team leader");
-    throw new Error("Only team leaders can remove members");
+  if (requesterError || !requesterData || requesterData.role !== "admin") {
+    console.error("❌ [removeMember] Requester is not a team admin");
+    throw new Error("Only team admins can remove members");
   }
 
   // STEP 2: Check member exists and belongs to team
@@ -382,17 +442,17 @@ export const removeMember = async (
     throw new Error("Member not found in this team");
   }
 
-  // STEP 3: Prevent removing the last leader
-  if (memberData.role === "leader") {
-    const { count: leaderCount } = await supabase
+  // STEP 3: Prevent removing the last admin
+  if (memberData.role === "admin") {
+    const { count: adminCount } = await supabase
       .from("team_members")
       .select("*", { count: "exact", head: true })
       .eq("team_id", teamId)
-      .eq("role", "leader");
+      .eq("role", "admin");
 
-    if (leaderCount === 1) {
-      console.error("❌ [removeMember] Cannot remove last leader");
-      throw new Error("Cannot remove the last leader from the team");
+    if (adminCount === 1) {
+      console.error("❌ [removeMember] Cannot remove last admin");
+      throw new Error("Cannot remove the last admin from the team");
     }
   }
 

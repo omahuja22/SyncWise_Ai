@@ -33,7 +33,7 @@ export default function TeamDetailPage() {
   const [inviteError, setInviteError] = useState<string | null>(null);
 
   // Current user's role in this team
-  const [userRole, setUserRole] = useState<'leader' | 'member' | null>(null);
+  const [userRole, setUserRole] = useState<'admin' | 'member' | null>(null);
 
   // Load team members
   useEffect(() => {
@@ -127,7 +127,7 @@ export default function TeamDetailPage() {
     );
   }
 
-  const isLeader = userRole === 'leader';
+  const isAdmin = userRole === 'admin';
 
   return (
     <div className="space-y-6 p-6">
@@ -174,8 +174,8 @@ export default function TeamDetailPage() {
         </motion.div>
       )}
 
-      {/* Invite Form (Leader Only) */}
-      {isLeader && (
+      {/* Invite Form (Admin Only) */}
+      {isAdmin && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -339,24 +339,24 @@ export default function TeamDetailPage() {
                       className="px-3 py-1 rounded-full text-xs font-medium"
                       style={{
                         backgroundColor:
-                          member.role === 'leader'
+                          member.role === 'admin'
                             ? 'rgba(34, 197, 94, 0.1)'
                             : 'rgba(255, 255, 255, 0.05)',
                         color:
-                          member.role === 'leader'
+                          member.role === 'admin'
                             ? 'var(--accent-success)'
                             : 'var(--text-secondary)',
                         border:
-                          member.role === 'leader'
+                          member.role === 'admin'
                             ? '1px solid rgba(34, 197, 94, 0.3)'
                             : '1px solid rgba(255, 255, 255, 0.1)',
                       }}
                     >
-                      {member.role === 'leader' ? '👑 Leader' : 'Member'}
+                      {member.role === 'admin' ? '👑 Admin' : 'Member'}
                     </span>
 
-                    {/* Remove Button (Leader Only, not self) */}
-                    {isLeader && !isCurrentUser && (
+                    {/* Remove Button (Admin Only, not self) */}
+                    {isAdmin && !isCurrentUser && (
                       <button
                         onClick={() => handleRemoveMember(member.id, name)}
                         className="px-2 py-1 rounded text-xs font-medium transition-all"

@@ -11,7 +11,7 @@ export interface AuthError {
   code?: string;
 }
 
-// Sign up with email and password
+// Sign up with email and password - with network error handling
 export const signUp = async (
   email: string,
   password: string,
@@ -31,7 +31,17 @@ export const signUp = async (
     });
 
     if (error) {
-      console.error("❌ [authService] Signup error:", error.message);
+      console.error("❌ [authService] Signup error:", error.message, error.code);
+      // Handle network errors
+      if (error.message.includes("Failed to fetch")) {
+        return { 
+          user: null, 
+          error: { 
+            message: "Network error. Please check your connection and try again.", 
+            code: "NETWORK_ERROR" 
+          } 
+        };
+      }
       return { user: null, error: { message: error.message, code: error.code } };
     }
 
@@ -52,7 +62,7 @@ export const signUp = async (
       error: null,
     };
   } catch (err: any) {
-    console.error("❌ [authService] Signup exception:", err);
+    console.error("❌ [authService] Signup exception:", err.message || err);
     return {
       user: null,
       error: { message: err.message || "Signup failed" },
@@ -60,7 +70,7 @@ export const signUp = async (
   }
 };
 
-// Sign in with email and password
+// Sign in with email and password - with safe error handling
 export const signIn = async (
   email: string,
   password: string
@@ -74,14 +84,24 @@ export const signIn = async (
     });
 
     if (error) {
-      console.error("❌ [authService] Login error:", error.message);
+      console.error("❌ [authService] Login error:", error.message, error.code);
+      // Handle network errors gracefully
+      if (error.message.includes("Failed to fetch")) {
+        return { 
+          user: null, 
+          error: { 
+            message: "Network error. Please check your connection and try again.", 
+            code: "NETWORK_ERROR" 
+          } 
+        };
+      }
       return { user: null, error: { message: error.message, code: error.code } };
     }
 
     if (!data.user) {
       return {
         user: null,
-        error: { message: "Authentication failed" },
+        error: { message: "Authentication failed: No user returned" },
       };
     }
 
@@ -95,7 +115,7 @@ export const signIn = async (
       error: null,
     };
   } catch (err: any) {
-    console.error("❌ [authService] Login exception:", err);
+    console.error("❌ [authService] Login exception:", err.message || err);
     return {
       user: null,
       error: { message: err.message || "Login failed" },
@@ -103,7 +123,7 @@ export const signIn = async (
   }
 };
 
-// Sign out
+// Sign out with error recovery
 export const signOut = async (): Promise<{ error: AuthError | null }> => {
   try {
     console.log("🔹 [authService] Signing out user");
@@ -118,21 +138,31 @@ export const signOut = async (): Promise<{ error: AuthError | null }> => {
     console.log("✅ [authService] User signed out");
     return { error: null };
   } catch (err: any) {
-    console.error("❌ [authService] Logout exception:", err);
+    console.error("❌ [authService] Logout exception:", err.message || err);
     return {
       error: { message: err.message || "Logout failed" },
     };
   }
 };
 
-// Get current user
+// Get current user with enhanced error handling
 export const getCurrentUser = async (): Promise<AuthUser | null> => {
   try {
     console.log("🔹 [authService] Fetching current user");
     
     const { data, error } = await supabase.auth.getUser();
 
-    if (error || !data.user) {
+    if (error) {
+      // Handle common auth errors
+      if (error.message.includes("Failed to fetch") || error.message.includes("Network")) {
+        console.warn("⚠️  [authService] Network error fetching user:", error.message);
+      } else {
+        console.error("❌ [authService] GetCurrentUser error:", error.message, error.code);
+      }
+      return null;
+    }
+
+    if (!data.user) {
       console.log("ℹ️  [authService] No authenticated user");
       return null;
     }
@@ -144,19 +174,31 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
       user_metadata: data.user.user_metadata,
     };
   } catch (err: any) {
-    console.error("❌ [authService] GetCurrentUser exception:", err);
+    console.error("❌ [authService] GetCurrentUser exception:", err.message || err);
     return null;
   }
 };
 
-// Get auth session
+// Get auth session with error handling
 export const getSession = async () => {
   try {
+    console.log("🔹 [authService] Fetching session");
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
+    
+    if (error) {
+      console.error("❌ [authService] GetSession error:", error.message);
+      return null;
+    }
+    
+    if (data.session) {
+      console.log("✅ [authService] Session found for user:", data.session.user.id);
+    } else {
+      console.log("ℹ️  [authService] No active session");
+    }
+    
     return data.session;
   } catch (err: any) {
-    console.error("❌ [authService] GetSession error:", err);
+    console.error("❌ [authService] GetSession exception:", err.message || err);
     return null;
   }
 };
@@ -190,24 +232,31 @@ export const signInWithGoogle = async (): Promise<{ error: AuthError | null }> =
   }
 };
 
-// Listen to auth state changes
+// Listen to auth state changes with error recovery
 export const onAuthStateChange = (callback: (user: AuthUser | null) => void) => {
   return supabase.auth.onAuthStateChange(async (event, session) => {
-    // Handle invalid refresh token
-    if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-      console.log('ℹ️  [authService] Auth session invalid or expired');
+    console.log("🔹 [authService] Auth state event:", event);
+
+    // Handle token refresh failure
+    if (event === 'TOKEN_REFRESHED' && !session) {
+      console.log('⚠️  [authService] Token refresh failed, clearing session');
       callback(null);
       return;
     }
 
-    if (session?.user) {
-      callback({
-        id: session.user.id,
-        email: session.user.email || "",
-        user_metadata: session.user.user_metadata,
-      });
-    } else {
+    // Check if user session exists
+    if (!session?.user) {
+      console.log('ℹ️  [authService] No user session');
       callback(null);
+      return;
     }
+
+    // User has valid session
+    console.log('✅ [authService] User session active:', session.user.id);
+    callback({
+      id: session.user.id,
+      email: session.user.email || "",
+      user_metadata: session.user.user_metadata,
+    });
   });
 };

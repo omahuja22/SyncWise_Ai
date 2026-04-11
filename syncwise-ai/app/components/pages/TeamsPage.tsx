@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { useTeams } from '@/app/contexts/TeamContext';
-import { getTeamMemberCount } from '@/services/teamService';
+import { getTeamMemberCount, isTeamAdmin } from '@/services/teamService';
 import { motion, AnimatePresence } from 'framer-motion';
 import JoinTeamModal from '@/app/components/JoinTeamModal';
 
@@ -18,28 +18,47 @@ export default function TeamsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [memberCounts, setMemberCounts] = useState<{ [teamId: string]: number }>({});
+  const [adminStatus, setAdminStatus] = useState<{ [teamId: string]: boolean }>({});
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
-  // Fetch member counts when teams load
+  // Fetch member counts and admin status when teams load
   useEffect(() => {
-    const fetchMemberCounts = async () => {
+    const fetchTeamData = async () => {
       const counts: { [teamId: string]: number } = {};
+      const adminStatuses: { [teamId: string]: boolean | null } = {};
+      
+      if (!user?.id) {
+        console.log('⚠️  [TeamsPage] No user ID, skipping fetch');
+        return;
+      }
+
+      console.log('🔹 [TeamsPage] Fetching admin status for', teams.length, 'teams');
+
       for (const team of teams) {
         try {
           const count = await getTeamMemberCount(team.id);
           counts[team.id] = count;
-        } catch (err) {
-          console.error(`Failed to fetch member count for team ${team.id}:`, err);
+
+          const isAdmin = await isTeamAdmin(team.id, user.id);
+          console.log(`🔹 [TeamsPage] Team ${team.id} - isAdmin: ${isAdmin}`);
+          adminStatuses[team.id] = isAdmin;
+        } catch (err: any) {
+          console.error(`❌ [TeamsPage] Error fetching data for team ${team.id}:`, err.message);
           counts[team.id] = 0;
+          // FALLBACK: Set to null on error so button still shows (will be caught at backend)
+          adminStatuses[team.id] = null;
         }
       }
+      
+      console.log('✅ [TeamsPage] Admin statuses:', adminStatuses);
       setMemberCounts(counts);
+      setAdminStatus(adminStatuses as { [teamId: string]: boolean });
     };
 
-    if (teams.length > 0) {
-      fetchMemberCounts();
+    if (teams.length > 0 && user?.id) {
+      fetchTeamData();
     }
-  }, [teams]);
+  }, [teams, user?.id]);
 
   const handleCreateTeam = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +100,7 @@ export default function TeamsPage() {
     try {
       setDeleting(true);
       setError(null);
-      console.log('🔹 [TeamsPage] Deleting team:', teamId);
+      console.log('🔹 [TeamsPage] Deleting team:', teamId, '- User:', user.id);
 
       await removeTeam(teamId);
 
@@ -364,39 +383,44 @@ export default function TeamsPage() {
                     </div>
 
                     <p className="text-xs" style={{ color: 'var(--accent-success)' }}>
-                      👑 You are the leader
+                      👑 You are the {adminStatus[team.id] ? 'admin' : 'member'}
                     </p>
                   </div>
                 </Link>
 
-                {/* Delete Button */}
-                <div
-                  className="px-4 py-2 border-t"
-                  style={{
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                  }}
-                >
-                  <button
-                    onClick={() => setDeleteConfirm(team.id)}
-                    className="w-full px-3 py-1 rounded text-xs font-medium transition-all"
+                {/* Delete Button - Only show for admins (or while loading) */}
+                {(adminStatus[team.id] === true || adminStatus[team.id] === null) && (
+                  <div
+                    className="px-4 py-2 border-t"
                     style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                      color: '#ef4444',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.backgroundColor =
-                        'rgba(239, 68, 68, 0.2)';
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.backgroundColor =
-                        'rgba(239, 68, 68, 0.1)';
+                      borderColor: 'rgba(255, 255, 255, 0.1)',
                     }}
                   >
-                    🗑️ Delete
-                  </button>
-                </div>
+                    <button
+                      onClick={() => {
+                        console.log('🗑️  [TeamsPage] Delete clicked for team:', team.id);
+                        setDeleteConfirm(team.id);
+                      }}
+                      className="w-full px-3 py-1 rounded text-xs font-medium transition-all"
+                      style={{
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor =
+                          'rgba(239, 68, 68, 0.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.backgroundColor =
+                          'rgba(239, 68, 68, 0.1)';
+                      }}
+                    >
+                      🗑️ Delete
+                    </button>
+                  </div>
+                )}
               </motion.div>
             ))}
           </div>

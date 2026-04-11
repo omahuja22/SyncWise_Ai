@@ -7,6 +7,7 @@ import TaskCard from './TaskCard';
 import CreateTaskModal from './CreateTaskModal';
 
 export default function TaskList() {
+  // ✅ ALL HOOKS AT TOP - Fixed order
   const { selectedTeamId } = useTeams();
   const {
     tasks,
@@ -25,11 +26,38 @@ export default function TaskList() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const previousTaskCountRef = useRef(0);
 
+  // useEffect 1: Logging
   useEffect(() => {
     console.log('📋 [TaskList] Rendered - selectedTeamId:', selectedTeamId, 'tasks:', tasks.length);
   }, [selectedTeamId, tasks.length]);
 
-  // Early return if no team selected
+  // useEffect 2: Clear success message
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  // useEffect 3: Show success on task creation
+  useEffect(() => {
+    if (!isCreating && showModal && tasks.length > previousTaskCountRef.current) {
+      setSuccessMessage(`✓ Task created (${tasks.length} total)`);
+      setShowModal(false);
+      previousTaskCountRef.current = tasks.length;
+    }
+  }, [isCreating, showModal, tasks.length]);
+
+  // useCallback: Task creation handler
+  const handleCreateTask = useCallback(async (
+    title: string,
+    deadline?: string,
+    points?: number
+  ) => {
+    await addTask(title, deadline, points);
+  }, [addTask]);
+
+  // ✅ EARLY RETURN AFTER ALL HOOKS
   if (!selectedTeamId) {
     return (
       <div className="space-y-6 p-6">
@@ -56,34 +84,10 @@ export default function TaskList() {
     );
   }
 
-  // Clear success message after 3 seconds
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  // Show success message only when a new task is actually added
-  useEffect(() => {
-    if (!isCreating && showModal && tasks.length > previousTaskCountRef.current) {
-      setSuccessMessage(`✓ Task created (${tasks.length} total)`);
-      setShowModal(false);
-      previousTaskCountRef.current = tasks.length;
-    }
-  }, [isCreating, showModal, tasks.length]);
-
+  // Calculate counts
   const pendingCount = tasks.filter((t) => t.status === 'pending').length;
   const inProgressCount = tasks.filter((t) => t.status === 'in-progress').length;
   const doneCount = tasks.filter((t) => t.status === 'done').length;
-
-  const handleCreateTask = useCallback(async (
-    title: string,
-    deadline?: string,
-    points?: number
-  ) => {
-    await addTask(title, deadline, points);
-  }, [addTask]);
 
   return (
     <div className="space-y-6 p-6">

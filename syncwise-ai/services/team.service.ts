@@ -11,12 +11,12 @@ export interface TeamMember {
   id: string;
   team_id: string;
   user_id: string;
-  role: "leader" | "member";
+  role: "admin" | "member";
   created_at: string;
 }
 
 /**
- * Create a new team and add the creator as a team leader
+ * Create a new team and add the creator as a team admin
  * @param teamName - Name of the team to create
  * @returns Created team object with ID
  * @throws Error if team creation or member insertion fails
@@ -57,26 +57,26 @@ export const createTeam = async (teamName: string): Promise<Team> => {
 
   console.log("✅ [createTeam] Team created with ID:", teamData.id);
 
-  // STEP 2: Add creator as team leader
+  // STEP 2: Add creator as team admin
   const { error: memberError } = await supabase
     .from("team_members")
     .insert([
       {
         team_id: teamData.id,
         user_id: user.id,
-        role: "leader",
+        role: "admin",
       },
     ])
     .select()
     .single();
 
   if (memberError) {
-    console.error("❌ [createTeam] Failed to add user as team leader:", memberError.message);
+    console.error("❌ [createTeam] Failed to add user as team admin:", memberError.message);
     // TODO: Consider deleting the team if member insertion fails
     throw new Error(`Failed to add team member: ${memberError.message}`);
   }
 
-  console.log("✅ [createTeam] User added as team leader");
+  console.log("✅ [createTeam] User added as team admin");
   console.log("📋 [createTeam] Team created successfully:", teamData);
 
   return teamData;

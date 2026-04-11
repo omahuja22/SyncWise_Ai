@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { AuthUser, onAuthStateChange } from "@/services/authService";
+import { AuthUser, onAuthStateChange, getCurrentUser } from "@/services/authService";
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -20,7 +20,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     console.log("🔹 [AuthProvider] Initializing auth state");
 
-    // Listen to auth state changes
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        // STEP 1: Attempt to recover session from Supabase
+        console.log("🔹 [AuthProvider] Attempting session recovery...");
+        const currentUser = await getCurrentUser();
+        
+        if (mounted) {
+          if (currentUser) {
+            console.log("✅ [AuthProvider] Session recovered:", currentUser.id);
+            setUser(currentUser);
+          } else {
+            console.log("ℹ️  [AuthProvider] No active session found");
+            setUser(null);
+          }
+        }
+      } catch (err: any) {
+        console.error("❌ [AuthProvider] Session recovery error:", err.message);
+        if (mounted) {
+          setUser(null);
+          // Clear potentially corrupted localStorage
+          try {
+            localStorage.removeItem("sb-lwyxqoqxerhlcxrmxkzf-auth-token");
+          } catch (e) {
+            console.log("ℹ️  [AuthProvider] Could not clear auth token");
+          }
+        }
+      }
+    };
+
+    // Initialize session
+    initializeAuth();
+
+    // STEP 2: Listen to auth state changes
     const {
       data: { subscription },
     } = onAuthStateChange((currentUser) => {
@@ -28,12 +62,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         "✅ [AuthProvider] Auth state changed:",
         currentUser?.id || "null"
       );
-      setUser(currentUser);
-      setLoading(false);
+      if (mounted) {
+        setUser(currentUser);
+        setLoading(false);
+      }
     });
 
     return () => {
       console.log("🔹 [AuthProvider] Cleaning up auth subscription");
+      mounted = false;
       subscription?.unsubscribe();
     };
   }, []);

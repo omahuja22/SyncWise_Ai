@@ -96,7 +96,7 @@ export default function CreateTaskModal({
             className="relative rounded-xl p-6 space-y-4 max-w-md w-full mx-4 pointer-events-auto"
             style={{
               backgroundColor: 'var(--card-bg)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.4)',
             }}
             onClick={(e) => e.stopPropagation()}

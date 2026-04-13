@@ -20,6 +20,7 @@ export default function TeamsPage() {
   const [memberCounts, setMemberCounts] = useState<{ [teamId: string]: number }>({});
   const [adminStatus, setAdminStatus] = useState<{ [teamId: string]: boolean }>({});
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  
   // Fetch member counts and admin status when teams load
   useEffect(() => {
     const fetchTeamData = async () => {

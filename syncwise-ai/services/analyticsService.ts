@@ -16,7 +16,6 @@ export interface TeamStats {
   efficiencyScore: number;
   averageTaskPoints: number;
 }
-
 export interface UserStats {
   userId: string;
   userName: string;

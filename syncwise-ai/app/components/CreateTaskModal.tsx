@@ -79,7 +79,7 @@ export default function CreateTaskModal({
           transition={{ duration: 0.2 }}
           onClick={onClose}
           className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        />
+        /
 
         {/* 🔥 FIX 3: Modal container - state-controlled animation */}
         <motion.div
